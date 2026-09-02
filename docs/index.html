@@ -448,7 +448,7 @@ function highlightJargon(text){
     const re = wordBoundaryRegex(term, 'i');
     if (re.test(html) && !found.includes(term)){
       found.push(term);
-      html = html.replace(re, `<span class="jargon-tag" title="${GLOSSARY[term]}">$1</span>`);
+      html = html.replace(re, (matched) => `<span class="jargon-tag" title="${GLOSSARY[term]}">${matched}</span>`);
     }
   });
   return { html, found };
