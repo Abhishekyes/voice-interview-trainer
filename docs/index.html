@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Voice Interview Trainer — Senior DS / AI Engineer / MLOps</title>
+<style>
+  :root{
+    --bg1:#0b0e17; --bg2:#131a2b; --card:#161d30; --card2:#10162552;
+    --accent1:#5b8cff; --accent2:#8a5bff; --accent3:#00d4b5;
+    --text:#e7ebf5; --muted:#8b93ac; --border:#26314a;
+    --good:#39ff88; --warn:#ffcc4d; --bad:#ff5d7a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; font-family:'Segoe UI',Arial,sans-serif; color:var(--text);
+    background:linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 100%);
+    display:flex; flex-direction:column; align-items:center; padding:28px 14px 60px;
+  }
+  h1{font-size:1.9em; margin:4px 0 2px; text-align:center; font-weight:700;
+     background:linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));
+     -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .sub{color:var(--muted); text-align:center; margin-bottom:20px; font-size:0.92em; max-width:680px;}
+  .wrap{width:100%; max-width:920px;}
+  .tabs{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+  .tab{flex:1; min-width:140px; text-align:center; padding:11px 10px; border-radius:10px; cursor:pointer;
+       background:var(--card); border:1px solid var(--border); color:var(--muted); font-size:0.88em; font-weight:600;}
+  .tab.active{background:linear-gradient(90deg,var(--accent1),var(--accent2)); color:#fff; border-color:transparent;}
+  .tab .badge{display:block; font-size:0.72em; font-weight:400; margin-top:2px; opacity:0.85;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px; margin-bottom:16px;}
+  .cost-banner{background:#2a2410; border:1px solid #55461a; color:var(--warn); border-radius:10px; padding:10px 14px; font-size:0.83em; margin-bottom:14px; line-height:1.5;}
+  .free-banner{background:#0f2a20; border:1px solid #1a5540; color:var(--good); border-radius:10px; padding:10px 14px; font-size:0.83em; margin-bottom:14px;}
+  label{display:block; font-size:0.82em; color:var(--muted); margin-bottom:5px;}
+  input[type=password], input[type=text], select, textarea{
+    width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--border);
+    background:#0c1120; color:var(--text); font-size:0.92em; outline:none; font-family:inherit;
+  }
+  input:focus, select:focus, textarea:focus{border-color:var(--accent1);}
+  .row{display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap;}
+  .row > div{flex:1; min-width:170px;}
+  .hint{font-size:0.76em; color:var(--muted); margin-top:5px; line-height:1.5;}
+  .hint a{color:var(--accent3);}
+  button{cursor:pointer; border:none; border-radius:9px; padding:10px 18px; font-size:0.92em; font-weight:600;}
+  button:disabled{opacity:0.4; cursor:not-allowed;}
+  .btn-primary{background:linear-gradient(90deg,var(--accent1),var(--accent2)); color:#fff;}
+  .btn-secondary{background:#232c46; color:var(--text); border:1px solid var(--border);}
+  .btn-row{display:flex; gap:10px; flex-wrap:wrap; margin:10px 0;}
+  select#roundFilter, select#roundFilterLive{max-width:260px;}
+  .qlist{max-height:230px; overflow-y:auto; border:1px solid var(--border); border-radius:10px;}
+  .qitem{padding:10px 12px; border-bottom:1px solid var(--border); cursor:pointer; font-size:0.87em;}
+  .qitem:last-child{border-bottom:none;}
+  .qitem:hover{background:#1c2438;}
+  .qitem.selected{background:#1d2c4d;}
+  .qitem .meta{color:var(--muted); font-size:0.78em; margin-top:3px;}
+  .diff{display:inline-block; padding:1px 7px; border-radius:20px; font-size:0.72em; margin-right:6px;}
+  .qcurrent{background:#0c1120; border:1px solid var(--border); border-radius:10px; padding:16px; font-size:1.02em; margin:12px 0; min-height:60px;}
+  .jargon-tag{color:var(--accent3); text-decoration:underline dotted; cursor:help;}
+  #liveTranscript, #freeAnswerTranscript{
+    background:#0c1120; border:1px solid var(--border); border-radius:10px; padding:12px; min-height:70px;
+    font-size:0.9em; line-height:1.5; margin:10px 0; white-space:pre-wrap;
+  }
+  .interim{color:var(--muted); font-style:italic;}
+  .checkResults{background:#0c1120; border:1px solid var(--border); border-radius:10px; padding:14px; margin-top:10px; font-size:0.87em;}
+  .checkResults .metric{display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #1d2438;}
+  .checkResults ul{margin:6px 0; padding-left:18px;}
+  .glossaryPanel{max-height:420px; overflow-y:auto;}
+  .gterm{padding:9px 0; border-bottom:1px solid var(--border); font-size:0.87em;}
+  .gterm b{color:var(--accent3);}
+  .status-bar{display:flex; align-items:center; gap:10px; margin:6px 0 12px; flex-wrap:wrap;}
+  .dot{width:10px; height:10px; border-radius:50%; background:#555;}
+  .dot.live{background:var(--good); animation:pulse 1.3s infinite;}
+  .dot.err{background:var(--bad);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+  .talkIndicator{padding:4px 12px; border-radius:20px; font-size:0.8em; font-weight:600; background:#232c46; color:var(--muted);}
+  .talkIndicator.user{background:#1d2c4d; color:var(--accent1);}
+  .talkIndicator.assistant{background:#1f3a30; color:var(--accent3);}
+  .timer{font-variant-numeric:tabular-nums; color:var(--muted); font-size:0.85em;}
+  #liveMsgs{height:300px; overflow-y:auto; background:#0c1120; border:1px solid var(--border); border-radius:10px; padding:14px; font-size:0.88em; line-height:1.5; margin-bottom:10px;}
+  .msg{margin-bottom:10px; padding:8px 12px; border-radius:9px; max-width:88%;}
+  .msg.user{background:#1d2c4d; margin-left:auto; text-align:right;}
+  .msg.assistant{background:#1f3a30; margin-right:auto;}
+  .msg .r{display:block; font-size:0.7em; color:var(--muted); margin-bottom:2px;}
+  .debrief{background:#0c1120; border:1px solid var(--border); border-radius:10px; padding:16px; margin-top:12px; font-size:0.88em; white-space:pre-wrap; line-height:1.6;}
+  .modelRow{font-size:0.78em; color:var(--muted); margin-top:8px;}
+  .modelRow input{display:inline-block; width:auto; padding:4px 8px; font-size:0.8em;}
+  footer{color:var(--muted); font-size:0.78em; text-align:center; margin-top:14px;}
+  [hidden]{display:none !important;}
+  ::-webkit-scrollbar{width:8px;} ::-webkit-scrollbar-thumb{background:#2a3550; border-radius:4px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎯 Voice Interview Trainer</h1>
+  <p class="sub">Senior / Staff / Principal-bar practice for Data Scientist, AI Engineer &amp; MLOps interviews — targeting top-tier company rigor, not one company's quirks.</p>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="free">Free Practice<span class="badge">$0 · no key needed</span></div>
+    <div class="tab" data-tab="feedback">AI Feedback<span class="badge">uses your key</span></div>
+    <div class="tab" data-tab="live">Live Voice Interview<span class="badge">uses your key</span></div>
+    <div class="tab" data-tab="glossary">Glossary<span class="badge">$0</span></div>
+  </div>
+
+  <!-- ============ FREE PRACTICE TAB ============ -->
+  <div class="panel active" id="panel-free">
+    <div class="card">
+      <div class="free-banner">✅ 100% free — runs entirely in your browser (Web Speech API for text-to-speech &amp; speech-to-text). No signup, no API key, no data leaves your machine.</div>
+      <div class="row">
+        <div>
+          <label for="roundFilter">Round</label>
+          <select id="roundFilter"></select>
+        </div>
+        <div>
+          <label for="diffFilter">Min difficulty</label>
+          <select id="diffFilter">
+            <option value="1">1 — any</option>
+            <option value="2">2+</option>
+            <option value="3">3+</option>
+            <option value="4">4+</option>
+            <option value="5">5+</option>
+            <option value="6">6+</option>
+            <option value="7">7 (hardest only)</option>
+          </select>
+        </div>
+      </div>
+      <div class="qlist" id="qlist"></div>
+    </div>
+
+    <div class="card">
+      <div class="qcurrent" id="qcurrent">Pick a question above to begin.</div>
+      <div class="btn-row">
+        <button class="btn-secondary" id="readAloudBtn">🔊 Read question aloud</button>
+        <button class="btn-primary" id="recordBtn">🎙️ Record my answer</button>
+        <button class="btn-secondary" id="stopRecordBtn" disabled>■ Stop recording</button>
+        <button class="btn-secondary" id="langCheckBtn">🧪 Quick language check</button>
+        <button class="btn-secondary" id="downloadBtn">⬇ Download transcript log</button>
+      </div>
+      <div id="freeAnswerTranscript"><span class="hint">Your transcribed answer will appear here as you speak.</span></div>
+      <div class="checkResults" id="checkResults" hidden></div>
+    </div>
+
+    <div class="card" id="jargonCard">
+      <b style="font-size:0.9em;">📖 Jargon in this question</b>
+      <div id="jargonList" class="hint" style="margin-top:8px;">Select a question to see auto-detected technical terms explained here.</div>
+    </div>
+  </div>
+
+  <!-- ============ AI FEEDBACK TAB ============ -->
+  <div class="panel" id="panel-feedback">
+    <div class="card">
+      <div class="cost-banner">💸 Costs money on <b>your own</b> OpenAI account — roughly <b>$0.01–0.03 per grading request</b> using the cost-efficient <code id="chatModelLabel1"></code> model (a short Q&amp;A is a few hundred tokens each way). Your key is used directly from this page to call OpenAI — it is never sent anywhere else, including to us.</div>
+      <div class="row">
+        <div style="flex:2;">
+          <label for="apiKeyFeedback">Your OpenAI API key</label>
+          <input type="password" id="apiKeyFeedback" placeholder="sk-..." autocomplete="off"/>
+        </div>
+      </div>
+      <p class="hint">Reuse the same question from the Free Practice tab (select one there first), or pick a new one below, then paste your spoken/typed answer and grade it.</p>
+      <div class="row">
+        <div style="flex:2;">
+          <label for="feedbackQuestion">Question being answered</label>
+          <input type="text" id="feedbackQuestion" placeholder="Pick a question in Free Practice tab first, or type one here"/>
+        </div>
+      </div>
+      <label for="feedbackAnswer">Your answer</label>
+      <textarea id="feedbackAnswer" rows="6" placeholder="Paste or type your answer here (or use the transcript from Free Practice)…"></textarea>
+      <div class="btn-row">
+        <button class="btn-primary" id="gradeBtn">🩺 Grade my answer</button>
+      </div>
+      <div class="modelRow">Chat model: <input type="text" id="chatModelInput" value="gpt-5.6-luna"/> <span class="hint" style="display:inline;">(override if OpenAI renames/retires this model)</span></div>
+      <div class="debrief" id="feedbackResult" hidden></div>
+    </div>
+  </div>
+
+  <!-- ============ LIVE VOICE INTERVIEW TAB ============ -->
+  <div class="panel" id="panel-live">
+    <div class="card">
+      <div class="cost-banner">💸 Costs money on <b>your own</b> OpenAI account — roughly <b>$1–2 per minute</b> of active back-and-forth using the cost-optimized <code id="rtModelLabel"></code> realtime model. <b>Start with a short 1–2 minute test call</b> before doing a full round. Your key goes straight from this page to OpenAI over WebRTC — never through any server of ours.</div>
+      <div class="row">
+        <div style="flex:2;">
+          <label for="apiKeyLive">Your OpenAI API key</label>
+          <input type="password" id="apiKeyLive" placeholder="sk-..." autocomplete="off"/>
+        </div>
+        <div>
+          <label for="roundFilterLive">Interview round</label>
+          <select id="roundFilterLive"></select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="eagerness">Turn-taking sensitivity (semantic VAD)</label>
+          <select id="eagerness">
+            <option value="low">Low — give me time to think</option>
+            <option value="auto" selected>Auto (default)</option>
+            <option value="high">High — jump in quickly</option>
+          </select>
+        </div>
+        <div>
+          <label for="rtVoice">Interviewer voice</label>
+          <select id="rtVoice">
+            <option value="marin" selected>Marin (calm, deep)</option>
+            <option value="cedar">Cedar</option>
+            <option value="alloy">Alloy</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" id="startLiveBtn">🎤 Start live interview round</button>
+        <button class="btn-secondary" id="stopLiveBtn" disabled>■ End call</button>
+      </div>
+      <div class="status-bar">
+        <div class="dot" id="liveDot"></div>
+        <span id="liveStatus">Not connected</span>
+        <span class="talkIndicator" id="talkIndicator">—</span>
+        <span class="timer" id="liveTimer">00:00</span>
+      </div>
+      <div id="liveMsgs"><div class="hint" style="text-align:center; margin-top:120px;">Your live conversation transcript will appear here.</div></div>
+      <div class="btn-row">
+        <button class="btn-secondary" id="debriefBtn" disabled>📋 Get post-call debrief (scored feedback)</button>
+      </div>
+      <div class="debrief" id="debriefResult" hidden></div>
+      <div class="modelRow">Realtime model: <input type="text" id="rtModelInput" value="gpt-realtime-2.1-mini"/> · Debrief uses chat model <input type="text" id="chatModelInput2" value="gpt-5.6-luna" style="width:110px;"/></div>
+    </div>
+  </div>
+
+  <!-- ============ GLOSSARY TAB ============ -->
+  <div class="panel" id="panel-glossary">
+    <div class="card">
+      <label for="glossarySearch">Search 85+ terms</label>
+      <input type="text" id="glossarySearch" placeholder="e.g. sharding, RAG, SLO..."/>
+      <div class="glossaryPanel" id="glossaryPanel" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <footer>Voice Interview Trainer · free tab runs 100% locally · paid tabs call OpenAI directly from your browser with your own key, never through any server of ours.</footer>
+</div>
+
+<script>
+/* ======================= DATA: QUESTION BANK ======================= */
+const QUESTIONS = [
+  // Round: Behavioral & Leadership
+  {round:'Behavioral & Leadership', q:"Tell me about a time you had to make a high-stakes technical decision with incomplete data. What was the outcome?", d:5},
+  {round:'Behavioral & Leadership', q:"Describe a situation where you disagreed with your manager or a senior stakeholder about a technical direction. How did you handle it?", d:5},
+  {round:'Behavioral & Leadership', q:"Tell me about a project that failed. What was your role, and what would you do differently?", d:4},
+  {round:'Behavioral & Leadership', q:"How have you influenced a team or organization without having formal authority over them?", d:6},
+  {round:'Behavioral & Leadership', q:"Describe a time you had to say no to a stakeholder's request. How did you communicate it?", d:4},
+  {round:'Behavioral & Leadership', q:"Tell me about a time you mentored a junior engineer through a difficult technical problem.", d:3},
+  {round:'Behavioral & Leadership', q:"Give an example of when you had to balance technical debt against shipping speed. How did you decide?", d:6},
+  {round:'Behavioral & Leadership', q:"Describe the hardest cross-functional conflict you've navigated between data science, engineering, and product.", d:7},
+
+  // Round: System Design
+  {round:'System Design', q:"Design a URL shortener that handles 100M writes/day and 1B reads/day.", d:4},
+  {round:'System Design', q:"Design a rate limiter that works correctly across a distributed fleet of API servers.", d:5},
+  {round:'System Design', q:"Design a real-time leaderboard system for a game with 50M daily active users.", d:5},
+  {round:'System Design', q:"Design a notification system that must support push, email, and SMS with delivery guarantees.", d:6},
+  {round:'System Design', q:"Design a distributed job scheduler like Airflow that must survive node failures.", d:6},
+  {round:'System Design', q:"Design a system for deduplicating events at exactly-once semantics across multiple producers.", d:7},
+  {round:'System Design', q:"Design a multi-region system with strong consistency requirements for financial transactions.", d:7},
+  {round:'System Design', q:"Walk me through how you'd shard a dataset that has severe key skew — a few keys carrying 100x the traffic of the rest.", d:6},
+
+  // Round: Cloud/AWS
+  {round:'Cloud/AWS', q:"Explain the trade-offs between SQS standard queues vs FIFO queues for a high-throughput pipeline.", d:4},
+  {round:'Cloud/AWS', q:"You need to run a nightly batch ML training job on AWS as cheaply as possible. What services and instance strategy would you use?", d:4},
+  {round:'Cloud/AWS', q:"Explain how you'd design IAM roles and policies for a multi-account AWS setup with least privilege.", d:5},
+  {round:'Cloud/AWS', q:"Compare S3 storage classes and when you'd use Intelligent-Tiering vs Glacier for an ML feature store.", d:3},
+  {round:'Cloud/AWS', q:"Design a VPC architecture for a data platform that must isolate production and staging with controlled egress.", d:6},
+  {round:'Cloud/AWS', q:"How would you use Spot Instances safely for a distributed training job without losing significant progress on interruption?", d:5},
+  {round:'Cloud/AWS', q:"Walk through how you'd debug a Lambda function that intermittently times out under load.", d:4},
+
+  // Round: Coding & Algorithms (verbal)
+  {round:'Coding & Algorithms', q:"Given a stream of numbers, design a data structure to return the running median efficiently.", d:5},
+  {round:'Coding & Algorithms', q:"Find the longest substring without repeating characters — narrate brute force to optimal with complexity at each step.", d:3},
+  {round:'Coding & Algorithms', q:"Given a log file too large for memory, describe how you'd find the top-K most frequent IP addresses.", d:5},
+  {round:'Coding & Algorithms', q:"Detect a cycle in a directed graph and explain why your approach is correct.", d:4},
+  {round:'Coding & Algorithms', q:"Design an LRU cache from scratch — what data structures back it, and why?", d:4},
+  {round:'Coding & Algorithms', q:"Given two sorted arrays too large to fit in memory together, describe how you'd merge them efficiently.", d:5},
+  {round:'Coding & Algorithms', q:"Explain how you'd implement consistent hashing and why it matters for a distributed cache.", d:6},
+  {round:'Coding & Algorithms', q:"Given a matrix of 0s and 1s, count the number of islands — then explain how you'd parallelize it at scale.", d:6},
+
+  // Round: ML/AI/LLM System Design
+  {round:'ML/AI/LLM System Design', q:"Design an end-to-end recommendation system for an e-commerce platform, from candidate generation to ranking.", d:6},
+  {round:'ML/AI/LLM System Design', q:"Design a RAG system for enterprise document Q&A. Cover chunking, embedding, retrieval, and hallucination mitigation.", d:6},
+  {round:'ML/AI/LLM System Design', q:"How would you detect and handle training-serving skew in a production ML pipeline?", d:5},
+  {round:'ML/AI/LLM System Design', q:"Design an experimentation platform that supports both offline model evaluation and online A/B testing for ML models.", d:7},
+  {round:'ML/AI/LLM System Design', q:"How would you design a feature store that serves both batch and low-latency online features consistently?", d:6},
+  {round:'ML/AI/LLM System Design', q:"Design a fraud detection system that must adapt to concept drift in near real-time.", d:7},
+  {round:'ML/AI/LLM System Design', q:"How would you choose between fine-tuning, prompt-engineering, and RAG for a domain-specific LLM application? Walk through your decision framework.", d:5},
+  {round:'ML/AI/LLM System Design', q:"Design an LLM agent system with tool-calling that must stay within a strict cost and latency budget.", d:7},
+
+  // Round: SQL & Experimentation
+  {round:'SQL & Experimentation', q:"Describe (verbally) a query to find the second-highest salary per department without using LIMIT/OFFSET tricks.", d:3},
+  {round:'SQL & Experimentation', q:"How would you detect Simpson's Paradox in an A/B test result, and what would you do about it?", d:5},
+  {round:'SQL & Experimentation', q:"Explain how you'd size a sample for an A/B test with a low base-rate conversion metric.", d:4},
+  {round:'SQL & Experimentation', q:"Describe how you'd handle network effects / interference bias in a marketplace A/B test.", d:6},
+  {round:'SQL & Experimentation', q:"Describe a query approach to compute a 7-day rolling retention cohort table.", d:4},
+  {round:'SQL & Experimentation', q:"A stakeholder says a test result is 'statistically significant but not practically significant.' Explain what that means and how you'd communicate it.", d:3},
+  {round:'SQL & Experimentation', q:"How would you detect and correct for peeking / early-stopping bias in a continuously-monitored experiment?", d:5},
+
+  // Round: SRE/Reliability/Security
+  {round:'SRE/Reliability/Security', q:"Walk me through how you'd design SLOs and error budgets for a real-time inference API.", d:4},
+  {round:'SRE/Reliability/Security', q:"Your model-serving p99 latency just tripled in production. Walk through your diagnostic process.", d:5},
+  {round:'SRE/Reliability/Security', q:"Design a blue-green or canary deployment strategy for rolling out a new ML model safely.", d:4},
+  {round:'SRE/Reliability/Security', q:"How would you secure a multi-tenant ML platform so one tenant's data can never leak into another's training run?", d:6},
+  {round:'SRE/Reliability/Security', q:"Explain how you'd design a system to detect and contain a prompt-injection attack against a production LLM application.", d:6},
+  {round:'SRE/Reliability/Security', q:"Walk through an incident where a data pipeline silently corrupted downstream features for days — how would you have caught it sooner?", d:5},
+  {round:'SRE/Reliability/Security', q:"Design a disaster-recovery plan for a real-time ML feature pipeline with an RPO of under 5 minutes.", d:7},
+];
+const ROUNDS = [...new Set(QUESTIONS.map(q => q.round))];
+
+/* ======================= DATA: GLOSSARY (85+ terms) ======================= */
+const GLOSSARY = {
+  "idempotency":"Repeating an operation produces the same result as doing it once.",
+  "sharding":"Splitting a dataset across multiple machines by a key so no single machine holds it all.",
+  "cap theorem":"A distributed system can only fully guarantee two of Consistency, Availability, and Partition tolerance at once.",
+  "eventual consistency":"All replicas converge to the same value eventually, but may briefly disagree.",
+  "strong consistency":"Every read sees the latest write immediately.",
+  "consistent hashing":"A hashing scheme that minimizes data movement when nodes are added or removed.",
+  "load balancer":"Distributes incoming traffic across multiple servers.",
+  "rate limiting":"Capping how many requests a client can make in a time window.",
+  "backpressure":"A system signaling upstream to slow down when it's overloaded.",
+  "circuit breaker":"A pattern that stops calling a failing dependency temporarily to avoid cascading failures.",
+  "exponential backoff":"Retrying failed calls with increasing delay to avoid overwhelming a recovering service.",
+  "idempotency key":"A unique token used to prevent duplicate processing of the same request.",
+  "exactly-once semantics":"A guarantee that an event is processed exactly one time — no duplicates, no drops.",
+  "at-least-once delivery":"A message may be delivered more than once but is never lost.",
+  "message queue":"A buffer that decouples producers and consumers of data.",
+  "dead-letter queue":"Where messages go after repeated processing failures, for manual inspection.",
+  "partition (kafka)":"An ordered, append-only log segment of a topic used for parallelism.",
+  "replication factor":"How many copies of data are kept across nodes for durability.",
+  "quorum":"The minimum number of nodes that must agree for a read or write to succeed.",
+  "leader election":"The process a distributed system uses to pick one node to coordinate.",
+  "vector clock":"A mechanism to track causal ordering of events across distributed nodes.",
+  "bloom filter":"A space-efficient probabilistic structure that tests set membership with no false negatives.",
+  "lru cache":"A cache that evicts the Least Recently Used item when it's full.",
+  "cache stampede":"Many clients simultaneously recomputing the same expired cache entry at once.",
+  "cdn":"Content Delivery Network — geographically distributed servers that cache content closer to users.",
+  "horizontal scaling":"Adding more machines to handle load.",
+  "vertical scaling":"Adding more resources (CPU/RAM) to a single machine.",
+  "sla":"Service Level Agreement — a contractual promise about system performance or uptime.",
+  "slo":"Service Level Objective — an internal target for reliability that underlies an SLA.",
+  "sli":"Service Level Indicator — the actual measured metric used to evaluate an SLO.",
+  "error budget":"The allowed amount of unreliability before a team must halt feature work and focus on stability.",
+  "p99 latency":"The response time below which 99% of requests fall — highlights tail latency.",
+  "canary deployment":"Rolling out a change to a small subset of traffic before a full release.",
+  "blue-green deployment":"Running two identical environments and switching traffic between them for zero-downtime releases.",
+  "feature flag":"A toggle that turns functionality on or off without a new deploy.",
+  "chaos engineering":"Deliberately injecting failures to test system resilience.",
+  "rpo":"Recovery Point Objective — the maximum acceptable amount of data loss, measured in time.",
+  "rto":"Recovery Time Objective — the maximum acceptable time to restore service after an outage.",
+  "iam":"Identity and Access Management — the system controlling who or what can access which cloud resources.",
+  "least privilege":"Granting only the minimum access needed to perform a task.",
+  "vpc":"Virtual Private Cloud — an isolated network environment within a cloud provider.",
+  "spot instance":"Discounted, interruptible cloud compute capacity.",
+  "auto-scaling group":"A fleet of servers that grows and shrinks automatically with load.",
+  "cold start":"The latency penalty when a serverless function or model must initialize before serving a request.",
+  "feature store":"A centralized system serving consistent ML features for both training and inference.",
+  "training-serving skew":"When features differ between training time and production serving time, hurting model accuracy.",
+  "data drift":"When the statistical properties of input data change over time versus what a model was trained on.",
+  "concept drift":"When the relationship between inputs and the target label changes over time.",
+  "rag":"Retrieval-Augmented Generation — an LLM retrieves relevant documents and uses them as context before answering.",
+  "embedding":"A numeric vector representation of text or data that captures semantic meaning.",
+  "vector database":"A database optimized for storing and searching embeddings by similarity.",
+  "chunking":"Splitting long documents into smaller pieces for retrieval or embedding.",
+  "hallucination":"When an LLM generates plausible-sounding but false or unsupported information.",
+  "prompt injection":"An attack where malicious input tricks an LLM into ignoring its original instructions.",
+  "fine-tuning":"Further training a pretrained model on task-specific data to specialize it.",
+  "lora":"Low-Rank Adaptation — a parameter-efficient way to fine-tune large models using small added matrices.",
+  "tool calling":"Letting an LLM invoke external functions or APIs as part of its response (also called function calling).",
+  "llm agent":"An LLM system that plans, calls tools, and takes multi-step actions toward a goal.",
+  "token":"The basic unit (roughly a word-piece) that language models process text in.",
+  "context window":"The maximum amount of text, in tokens, a model can consider at once.",
+  "quantization":"Reducing a model's numeric precision to shrink its size and speed up inference.",
+  "model distillation":"Training a smaller 'student' model to mimic a larger 'teacher' model.",
+  "a/b test":"An experiment comparing two variants by randomly assigning users to each.",
+  "statistical significance":"The probability an observed effect is not due to random chance alone.",
+  "p-value":"The probability of seeing a result at least as extreme as observed, assuming no real effect exists.",
+  "statistical power":"The probability a test correctly detects a real effect when one truly exists.",
+  "sample size calculation":"Determining how many users or observations an experiment needs to detect a given effect reliably.",
+  "simpson's paradox":"A trend that appears in subgroups but reverses when the groups are combined.",
+  "network effects (experiments)":"When one user's treatment assignment affects outcomes for other users, biasing results.",
+  "peeking":"Repeatedly checking experiment results early and stopping as soon as significance appears, inflating false positives.",
+  "cohort analysis":"Grouping users by a shared starting point (e.g. signup week) to track behavior over time.",
+  "retention rate":"The percentage of users who continue engaging after a given period.",
+  "confounding variable":"An unmeasured factor that influences both the treatment and the outcome, biasing results.",
+  "selection bias":"When the sample analyzed isn't representative of the population, due to how it was chosen.",
+  "survivorship bias":"Drawing conclusions only from things that 'survived' a process, ignoring what didn't.",
+  "precision":"Of the items predicted positive, the fraction that are actually positive.",
+  "recall":"Of the items that are actually positive, the fraction correctly predicted positive.",
+  "f1 score":"The harmonic mean of precision and recall.",
+  "roc-auc":"A metric summarizing a classifier's ability to distinguish classes across all thresholds.",
+  "class imbalance":"When one class vastly outnumbers another in a dataset, complicating training and evaluation.",
+  "observability":"The ability to understand a system's internal state from its outputs — logs, metrics, and traces.",
+  "distributed tracing":"Following a single request's path across multiple services to diagnose latency or errors.",
+  "runbook":"A documented, step-by-step procedure for responding to a specific operational incident.",
+  "blameless postmortem":"A written analysis after an incident focused on systemic causes, not individual blame.",
+  "multi-tenancy":"A single system serving multiple customers or tenants while keeping their data and resources isolated.",
+  "semantic vad":"A turn-detection method that uses the meaning of spoken words (not just silence) to decide when someone has finished talking.",
+  "barge-in":"When a user interrupts a system's spoken response by talking, and the system stops to listen.",
+};
+
+/* ======================= FREE PRACTICE: Web Speech ======================= */
+let selectedQuestion = null;
+let recognition = null;
+let recognizing = false;
+let finalTranscript = '';
+
+const roundFilter = document.getElementById('roundFilter');
+const roundFilterLive = document.getElementById('roundFilterLive');
+ROUNDS.forEach(r => {
+  const o1 = document.createElement('option'); o1.value = r; o1.textContent = r; roundFilter.appendChild(o1);
+  const o2 = document.createElement('option'); o2.value = r; o2.textContent = r; roundFilterLive.appendChild(o2);
+});
+
+function diffColor(d){
+  if (d <= 3) return '#1f3a30;color:#39ff88';
+  if (d <= 5) return '#2a2410;color:#ffcc4d';
+  return '#3a1f26;color:#ff5d7a';
+}
+
+function renderQList(){
+  const round = roundFilter.value;
+  const minD = parseInt(document.getElementById('diffFilter').value, 10);
+  const list = document.getElementById('qlist');
+  list.innerHTML = '';
+  QUESTIONS.filter(q => (!round || q.round === round) && q.d >= minD).forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'qitem';
+    div.innerHTML = `<span class="diff" style="background:${diffColor(q.d)}">D${q.d}</span>${q.q}<div class="meta">${q.round}</div>`;
+    div.addEventListener('click', () => selectQuestion(q, div));
+    list.appendChild(div);
+  });
+}
+roundFilter.addEventListener('change', renderQList);
+document.getElementById('diffFilter').addEventListener('change', renderQList);
+renderQList();
+
+function escapeRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function wordBoundaryRegex(s, flags){
+  const pattern = escapeRegex(s).replace(/ /g, '\\s+');
+  return new RegExp('\\b' + pattern + '\\b', flags || 'i');
+}
+
+function highlightJargon(text){
+  let html = text;
+  const found = [];
+  Object.keys(GLOSSARY).sort((a,b)=>b.length-a.length).forEach(term => {
+    const re = wordBoundaryRegex(term, 'i');
+    if (re.test(html) && !found.includes(term)){
+      found.push(term);
+      html = html.replace(re, `<span class="jargon-tag" title="${GLOSSARY[term]}">$1</span>`);
+    }
+  });
+  return { html, found };
+}
+
+function selectQuestion(q, el){
+  selectedQuestion = q;
+  document.querySelectorAll('.qitem').forEach(e => e.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+  const { html, found } = highlightJargon(q.q);
+  document.getElementById('qcurrent').innerHTML = html;
+  document.getElementById('feedbackQuestion').value = q.q;
+  const jl = document.getElementById('jargonList');
+  if (found.length){
+    jl.innerHTML = found.map(t => `<div style="margin-bottom:6px;"><b style="color:var(--accent3)">${t}</b> — ${GLOSSARY[t]}</div>`).join('');
+  } else {
+    jl.innerHTML = '<span class="hint">No auto-detected jargon in this question.</span>';
+  }
+  finalTranscript = '';
+  document.getElementById('freeAnswerTranscript').innerHTML = '<span class="hint">Your transcribed answer will appear here as you speak.</span>';
+  document.getElementById('checkResults').hidden = true;
+}
+
+document.getElementById('readAloudBtn').addEventListener('click', () => {
+  if (!selectedQuestion){ alert('Pick a question first.'); return; }
+  if (!('speechSynthesis' in window)){ alert('Speech synthesis not supported in this browser.'); return; }
+  const utter = new SpeechSynthesisUtterance(selectedQuestion.q);
+  utter.rate = 0.98;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utter);
+});
+
+function getRecognition(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  const r = new SR();
+  r.continuous = true;
+  r.interimResults = true;
+  r.lang = 'en-US';
+  return r;
+}
+
+document.getElementById('recordBtn').addEventListener('click', () => {
+  if (!selectedQuestion){ alert('Pick a question first.'); return; }
+  recognition = getRecognition();
+  if (!recognition){ alert('Speech recognition is not supported in this browser. Try Chrome on desktop.'); return; }
+  finalTranscript = '';
+  recognizing = true;
+  document.getElementById('recordBtn').disabled = true;
+  document.getElementById('stopRecordBtn').disabled = false;
+  recognition.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++){
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) finalTranscript += t + ' ';
+      else interim += t;
+    }
+    document.getElementById('freeAnswerTranscript').innerHTML = finalTranscript + '<span class="interim">' + interim + '</span>';
+  };
+  recognition.onerror = (e) => { console.error('Speech recognition error', e); };
+  recognition.onend = () => {
+    if (recognizing){ try{ recognition.start(); }catch(e){} } // auto-restart if user hasn't stopped
+  };
+  recognition.start();
+});
+
+document.getElementById('stopRecordBtn').addEventListener('click', () => {
+  recognizing = false;
+  if (recognition){ try{ recognition.stop(); }catch(e){} }
+  document.getElementById('recordBtn').disabled = false;
+  document.getElementById('stopRecordBtn').disabled = true;
+  document.getElementById('feedbackAnswer').value = finalTranscript.trim();
+});
+
+const FILLERS = ['um','uh','like','you know','basically','actually','sort of','kind of','literally','i mean'];
+const UPGRADES = {
+  "gonna":"going to", "wanna":"want to", "gotta":"have to / need to", "kinda":"somewhat",
+  "sorta":"somewhat", "a lot of":"a significant amount of", "a bunch of":"several / numerous",
+  "you know":"(remove — filler phrase)", "basically":"essentially / in short", "i guess":"I believe / in my assessment",
+  "kind of like":"similar to", "yeah":"yes", "nope":"no", "super":"very / highly",
+  "pretty much":"largely / essentially", "no biggie":"not a significant issue",
+  "at the end of the day":"ultimately", "stuff":"factors / components", "things":"factors / elements"
+};
+
+function runLanguageCheck(text){
+  const lower = text.toLowerCase();
+  const wordCount = (text.trim().match(/\S+/g) || []).length;
+  const fillerCounts = {};
+  let totalFillers = 0;
+  FILLERS.forEach(f => {
+    const re = wordBoundaryRegex(f, 'gi');
+    const m = lower.match(re);
+    if (m && m.length){ fillerCounts[f] = m.length; totalFillers += m.length; }
+  });
+  const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+  const runOns = sentences.filter(s => {
+    const wc = (s.match(/\S+/g) || []).length;
+    const conj = (s.match(/\b(and|so|but|because)\b/gi) || []).length;
+    return wc > 40 && conj >= 3;
+  });
+  const upgrades = [];
+  Object.keys(UPGRADES).forEach(phrase => {
+    const re = wordBoundaryRegex(phrase, 'i');
+    if (re.test(lower)) upgrades.push(`"${phrase}" → ${UPGRADES[phrase]}`);
+  });
+  return { wordCount, fillerCounts, totalFillers, runOns, upgrades };
+}
+
+document.getElementById('langCheckBtn').addEventListener('click', () => {
+  const text = finalTranscript.trim() || document.getElementById('feedbackAnswer').value.trim();
+  if (!text){ alert('Record or type an answer first.'); return; }
+  const r = runLanguageCheck(text);
+  const box = document.getElementById('checkResults');
+  box.hidden = false;
+  box.innerHTML = `
+    <div class="metric"><span>Word count</span><b>${r.wordCount}</b></div>
+    <div class="metric"><span>Filler words used</span><b>${r.totalFillers}</b></div>
+    ${r.totalFillers ? '<ul>' + Object.entries(r.fillerCounts).map(([f,c]) => `<li>"${f}" × ${c}</li>`).join('') + '</ul>' : ''}
+    <div class="metric"><span>Possible run-on sentences</span><b>${r.runOns.length}</b></div>
+    ${r.runOns.length ? '<ul>' + r.runOns.map(s => `<li>${s.slice(0,140)}${s.length>140?'…':''}</li>`).join('') + '</ul>' : ''}
+    <div class="metric"><span>Casual → professional upgrades found</span><b>${r.upgrades.length}</b></div>
+    ${r.upgrades.length ? '<ul>' + r.upgrades.map(u => `<li>${u}</li>`).join('') + '</ul>' : '<div class="hint">No casual phrases detected — nice and clean.</div>'}
+  `;
+});
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const text = finalTranscript.trim() || document.getElementById('feedbackAnswer').value.trim();
+  const q = selectedQuestion ? selectedQuestion.q : '(no question selected)';
+  const r = text ? runLanguageCheck(text) : null;
+  const lines = [
+    'VOICE INTERVIEW TRAINER — SESSION LOG',
+    'Date: ' + new Date().toISOString(),
+    '',
+    'QUESTION: ' + q,
+    '',
+    'YOUR ANSWER:',
+    text || '(no answer recorded)',
+    ''
+  ];
+  if (r){
+    lines.push('LANGUAGE CHECK:');
+    lines.push('Word count: ' + r.wordCount);
+    lines.push('Filler words: ' + r.totalFillers + ' ' + JSON.stringify(r.fillerCounts));
+    lines.push('Run-on sentences flagged: ' + r.runOns.length);
+    lines.push('Upgrade suggestions: ' + (r.upgrades.join('; ') || 'none'));
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'interview-session-' + Date.now() + '.txt';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+/* ======================= TABS ======================= */
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+/* ======================= GLOSSARY TAB ======================= */
+function renderGlossary(filter){
+  const panel = document.getElementById('glossaryPanel');
+  const f = (filter || '').toLowerCase();
+  panel.innerHTML = Object.entries(GLOSSARY)
+    .filter(([term, def]) => !f || term.includes(f) || def.toLowerCase().includes(f))
+    .sort((a,b) => a[0].localeCompare(b[0]))
+    .map(([term, def]) => `<div class="gterm"><b>${term}</b> — ${def}</div>`)
+    .join('') || '<div class="hint">No matches.</div>';
+}
+document.getElementById('glossarySearch').addEventListener('input', (e) => renderGlossary(e.target.value));
+renderGlossary('');
+
+/* ======================= AI FEEDBACK MODE (Chat Completions) ======================= */
+document.getElementById('chatModelLabel1').textContent = document.getElementById('chatModelInput').value;
+
+document.getElementById('gradeBtn').addEventListener('click', async () => {
+  const apiKey = document.getElementById('apiKeyFeedback').value.trim();
+  const question = document.getElementById('feedbackQuestion').value.trim();
+  const answer = document.getElementById('feedbackAnswer').value.trim();
+  const model = document.getElementById('chatModelInput').value.trim() || 'gpt-5.6-luna';
+  if (!apiKey){ alert('Paste your OpenAI API key first.'); return; }
+  if (!question || !answer){ alert('Need both a question and your answer.'); return; }
+
+  const btn = document.getElementById('gradeBtn');
+  btn.disabled = true; btn.textContent = 'Grading…';
+  const resultBox = document.getElementById('feedbackResult');
+  resultBox.hidden = false;
+  resultBox.textContent = 'Contacting OpenAI…';
+
+  const systemPrompt = `You are a rigorous but fair senior-level technical interview coach for Data Scientist / AI Engineer / MLOps roles, `
+    + `grading against a Senior/Staff/Principal (~10 year) bar even though the candidate may have less experience — this is intentional `
+    + `stress-testing. For the given question and spoken/written answer, respond with these exact sections:\n`
+    + `1) GRAMMAR & PHRASING: quote 2-4 specific phrases the candidate used and give more professional/native-sounding alternatives. If the `
+    + `answer is already clean, say so briefly.\n`
+    + `2) TECHNICAL CONTENT FEEDBACK: what was strong, what was missing or wrong, judged against the tough bar above. Be specific and honest.\n`
+    + `3) JARGON CHECK: explain in plain English any technical terms the candidate used loosely or incorrectly (or say "none" if fine).\n`
+    + `4) ONE CONCRETE IMPROVEMENT TIP: a single, actionable thing to do differently next time.\n`
+    + `Keep the whole response under 220 words, no fluff, no generic encouragement filler.`;
+
+  try{
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `QUESTION: ${question}\n\nCANDIDATE'S ANSWER: ${answer}` }
+        ]
+      })
+    });
+    if (!resp.ok){
+      const errText = await resp.text();
+      throw new Error(resp.status + ': ' + errText.slice(0,400));
+    }
+    const data = await resp.json();
+    resultBox.textContent = data.choices?.[0]?.message?.content || '(empty response)';
+  } catch(err){
+    console.error(err);
+    resultBox.textContent = 'Error contacting OpenAI: ' + err.message
+      + '\n\nIf this looks like a network/CORS error rather than an API error, some browser/network setups block '
+      + 'direct page-to-OpenAI calls to this endpoint. Try again, or open this file via a local server '
+      + '(e.g. "python -m http.server" then http://localhost:8000/) instead of double-clicking it, which resolves it in most cases.';
+  } finally {
+    btn.disabled = false; btn.textContent = '🩺 Grade my answer';
+  }
+});
+
+/* ======================= LIVE VOICE INTERVIEW MODE (Realtime API / WebRTC) ======================= */
+document.getElementById('rtModelLabel').textContent = document.getElementById('rtModelInput').value;
+
+const ROUND_INSTRUCTIONS = {
+  'Behavioral & Leadership': `Ask STAR-style behavioral and leadership questions calibrated to a Senior/Staff/Principal (~10yr) bar for a `
+    + `Data Scientist / AI Engineer / MLOps candidate. Probe for specifics ("what exactly did YOU do", "what was the actual outcome, with numbers") `
+    + `— don't accept vague answers, push back once if an answer is too generic. One question at a time.`,
+  'System Design': `Run a system design round. Force this exact sequence: (1) clarify requirements and constraints, (2) scale/capacity estimation `
+    + `with real numbers, (3) high-level architecture, (4) a deep dive into ONE component of your choosing, (5) progressive failure injection `
+    + `— once they have a working design, throw curveballs like "now your cache is also down" or "traffic just went 20x, what breaks first?". `
+    + `Never suggest the architecture yourself first — make them propose it, then stress-test it.`,
+  'Cloud/AWS': `Ask practical AWS/cloud architecture and cost/operations questions at a senior bar. Push on trade-offs (cost vs latency vs `
+    + `reliability) and real operational failure modes, not just "name the service."`,
+  'Coding & Algorithms': `This is a VOICE-ONLY coding round — there is no code execution, so make the candidate narrate: brute-force approach first, `
+    + `then optimize, stating time/space complexity at each step, then edge cases. Ask clarifying follow-up questions like a real interviewer would `
+    + `about input constraints.`,
+  'ML/AI/LLM System Design': `Run an ML/AI system design round at a Staff/Principal bar. Push for concrete choices (specific algorithms, `
+    + `concrete metrics, real trade-offs between latency/cost/accuracy), not textbook generalities. If they mention RAG, an agent, or fine-tuning, `
+    + `probe the failure modes (hallucination, drift, cost blowups) specifically.`,
+  'SQL & Experimentation': `Ask SQL reasoning and A/B testing / causal inference questions at a senior data science bar. For SQL, have them `
+    + `describe the query logic step by step rather than writing exact syntax. For experiment questions, push on statistical rigor — sample size, `
+    + `bias, and whether they'd actually trust the result before shipping.`,
+  'SRE/Reliability/Security': `Run this as a live incident-response round. DRIP-FEED evidence only as the candidate asks good diagnostic `
+    + `questions — do not volunteer the root cause. Reward good hypothesis-driven debugging; if they guess randomly without reasoning, tell them `
+    + `evidence doesn't support that yet and ask what they'd check next.`,
+};
+
+const HINT_LADDER_RULE = `Never reveal the correct answer or a full solution before the candidate has genuinely attempted the problem. Use a `
+  + `hint ladder if they're stuck: (1) a subtle nudge, (2) a more directional hint, (3) name the relevant technique or concept, (4) sketch a `
+  + `near-solution, and only give the full explanation after repeated genuine struggle across multiple hints. Always let them try again after each hint.`;
+
+function buildLiveInstructions(round){
+  const base = ROUND_INSTRUCTIONS[round] || ROUND_INSTRUCTIONS['System Design'];
+  return `You are a professional, rigorous senior technical interviewer at a top-tier tech company, conducting the "${round}" round of a `
+    + `mock interview for a Data Scientist / AI Engineer / MLOps role. Calibrate your bar to a Senior/Staff/Principal (~10 years experience) `
+    + `standard even though the candidate has less experience — this is intentional, they asked for a hard stress test. ${base} ${HINT_LADDER_RULE} `
+    + `Speak naturally like a real interviewer on a call — concise turns, real follow-ups, not a lecture. Start now with a brief one-line intro `
+    + `to this round, then your first question.`;
+}
+
+let livePc = null, liveDc = null, liveMic = null, liveTimerInt = null, liveStartTime = null;
+let liveAssistantBuffer = '', liveAssistantEl = null;
+const fullTranscriptTurns = [];
+
+const liveStatus = document.getElementById('liveStatus');
+const liveDot = document.getElementById('liveDot');
+const talkIndicator = document.getElementById('talkIndicator');
+const liveMsgs = document.getElementById('liveMsgs');
+const startLiveBtn = document.getElementById('startLiveBtn');
+const stopLiveBtn = document.getElementById('stopLiveBtn');
+const debriefBtn = document.getElementById('debriefBtn');
+
+function setLiveStatus(text, mode){
+  liveStatus.textContent = text;
+  liveDot.className = 'dot' + (mode ? ' ' + mode : '');
+}
+function setTalk(who){
+  talkIndicator.className = 'talkIndicator' + (who ? ' ' + who : '');
+  talkIndicator.textContent = who === 'user' ? '🗣️ You are speaking' : who === 'assistant' ? '🎙️ Interviewer speaking' : '—';
+}
+function clearLivePlaceholder(){
+  if (liveMsgs.children.length === 1 && liveMsgs.children[0].classList.contains('hint')) liveMsgs.innerHTML = '';
+}
+function addLiveMessage(role, text){
+  clearLivePlaceholder();
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.innerHTML = '<span class="r">' + (role === 'user' ? 'You' : 'Interviewer') + '</span>' + text;
+  liveMsgs.appendChild(div);
+  liveMsgs.scrollTop = liveMsgs.scrollHeight;
+  fullTranscriptTurns.push({ role, text });
+  return div;
+}
+function startTimer(){
+  liveStartTime = Date.now();
+  liveTimerInt = setInterval(() => {
+    const s = Math.floor((Date.now() - liveStartTime) / 1000);
+    const m = Math.floor(s / 60), r = s % 60;
+    document.getElementById('liveTimer').textContent = String(m).padStart(2,'0') + ':' + String(r).padStart(2,'0');
+  }, 500);
+}
+function stopTimer(){ if (liveTimerInt) clearInterval(liveTimerInt); }
+
+startLiveBtn.addEventListener('click', async () => {
+  const apiKey = document.getElementById('apiKeyLive').value.trim();
+  const round = roundFilterLive.value || ROUNDS[0];
+  const eagerness = document.getElementById('eagerness').value;
+  const voice = document.getElementById('rtVoice').value;
+  const model = document.getElementById('rtModelInput').value.trim() || 'gpt-realtime-2.1-mini';
+  if (!apiKey){ alert('Paste your OpenAI API key first.'); return; }
+
+  startLiveBtn.disabled = true;
+  setLiveStatus('Requesting session…');
+  fullTranscriptTurns.length = 0;
+
+  try{
+    const secretResp = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session: {
+          type: 'realtime',
+          model,
+          instructions: buildLiveInstructions(round),
+          audio: {
+            output: { voice },
+            input: { turn_detection: { type: 'semantic_vad', eagerness, create_response: true, interrupt_response: true } }
+          }
+        }
+      })
+    });
+    if (!secretResp.ok) throw new Error('Could not create session (' + secretResp.status + '): ' + (await secretResp.text()).slice(0,300));
+    const { value: ephemeralKey } = await secretResp.json();
+
+    setLiveStatus('Requesting microphone…');
+    liveMic = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    livePc = new RTCPeerConnection();
+    livePc.addTrack(liveMic.getTracks()[0], liveMic);
+    const remoteAudio = new Audio();
+    remoteAudio.autoplay = true;
+    livePc.ontrack = (e) => { remoteAudio.srcObject = e.streams[0]; };
+
+    liveDc = livePc.createDataChannel('oai-events');
+    liveDc.addEventListener('open', () => {
+      setLiveStatus('Connected — ' + round + ' round in progress', 'live');
+      startTimer();
+      stopLiveBtn.disabled = false;
+      debriefBtn.disabled = false;
+    });
+    liveDc.addEventListener('message', handleLiveEvent);
+
+    const offer = await livePc.createOffer();
+    await livePc.setLocalDescription(offer);
+
+    const sdpResp = await fetch('https://api.openai.com/v1/realtime/calls', {
+      method: 'POST', body: offer.sdp,
+      headers: { 'Authorization': 'Bearer ' + ephemeralKey, 'Content-Type': 'application/sdp' }
+    });
+    if (!sdpResp.ok) throw new Error('Call setup failed (' + sdpResp.status + '): ' + (await sdpResp.text()).slice(0,300));
+    await livePc.setRemoteDescription({ type: 'answer', sdp: await sdpResp.text() });
+  } catch(err){
+    console.error(err);
+    setLiveStatus('Error: ' + err.message, 'err');
+    startLiveBtn.disabled = false;
+    cleanupLive();
+  }
+});
+
+function handleLiveEvent(e){
+  let ev;
+  try { ev = JSON.parse(e.data); } catch { return; }
+
+  if (ev.type === 'input_audio_buffer.speech_started') setTalk('user');
+  if (ev.type === 'input_audio_buffer.speech_stopped') setTalk(null);
+
+  if (ev.type === 'response.audio_transcript.delta'){
+    setTalk('assistant');
+    if (!liveAssistantEl){ liveAssistantEl = addLiveMessage('assistant', ''); liveAssistantBuffer=''; fullTranscriptTurns.pop(); }
+    liveAssistantBuffer += ev.delta;
+    liveAssistantEl.innerHTML = '<span class="r">Interviewer</span>' + liveAssistantBuffer;
+    liveMsgs.scrollTop = liveMsgs.scrollHeight;
+  }
+  if (ev.type === 'response.audio_transcript.done' || ev.type === 'response.done'){
+    if (liveAssistantEl && liveAssistantBuffer) fullTranscriptTurns.push({ role:'assistant', text: liveAssistantBuffer });
+    liveAssistantEl = null; liveAssistantBuffer = '';
+    setTalk(null);
+  }
+  if (ev.type === 'conversation.item.input_audio_transcription.completed'){
+    addLiveMessage('user', ev.transcript || '(spoke)');
+  }
+  if (ev.type === 'error'){
+    console.error('Realtime error', ev);
+    setLiveStatus('Error: ' + (ev.error?.message || 'unknown'), 'err');
+  }
+}
+
+function cleanupLive(){
+  if (liveDc){ try{ liveDc.close(); }catch(e){} liveDc = null; }
+  if (livePc){ try{ livePc.close(); }catch(e){} livePc = null; }
+  if (liveMic){ liveMic.getTracks().forEach(t => t.stop()); liveMic = null; }
+  stopTimer();
+  liveAssistantEl = null; liveAssistantBuffer = '';
+  setTalk(null);
+}
+
+stopLiveBtn.addEventListener('click', () => {
+  cleanupLive();
+  setLiveStatus('Call ended');
+  startLiveBtn.disabled = false;
+  stopLiveBtn.disabled = true;
+});
+
+document.getElementById('chatModelInput2').addEventListener('input', (e) => {
+  document.getElementById('chatModelInput').value = e.target.value;
+});
+
+debriefBtn.addEventListener('click', async () => {
+  const apiKey = document.getElementById('apiKeyLive').value.trim();
+  const model = document.getElementById('chatModelInput2').value.trim() || 'gpt-5.6-luna';
+  if (!apiKey){ alert('Paste your OpenAI API key first.'); return; }
+  if (!fullTranscriptTurns.length){ alert('No conversation yet to debrief.'); return; }
+
+  debriefBtn.disabled = true; debriefBtn.textContent = 'Scoring…';
+  const box = document.getElementById('debriefResult');
+  box.hidden = false;
+  box.textContent = 'Contacting OpenAI for your debrief…';
+
+  const transcriptText = fullTranscriptTurns.map(t => (t.role === 'user' ? 'CANDIDATE: ' : 'INTERVIEWER: ') + t.text).join('\n');
+  const systemPrompt = `You are a senior interview panel lead reviewing a mock interview transcript for a Data Scientist / AI Engineer / MLOps `
+    + `candidate, graded against a Senior/Staff/Principal (~10yr) bar. Respond with exactly these sections:\n`
+    + `1) OVERALL RATING: one of Strong Hire / Hire / Leaning Hire / Leaning No Hire / No Hire / Strong No Hire, with one sentence why.\n`
+    + `2) STRENGTHS: 2-4 bullet points with specific evidence quoted or paraphrased from the transcript.\n`
+    + `3) WEAKNESSES: 2-4 bullet points, specific and evidence-based, not generic.\n`
+    + `4) MISSED OPPORTUNITIES: things a strong candidate would have raised or asked about but this candidate didn't.\n`
+    + `5) ENGLISH / PHRASING NOTES: 2-3 concrete phrasing or grammar improvements from what they actually said.\n`
+    + `Be honest and specific — this is a stress test, not a pep talk. Keep it under 300 words total.`;
+
+  try{
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: 'TRANSCRIPT:\n' + transcriptText }
+        ]
+      })
+    });
+    if (!resp.ok){ const t = await resp.text(); throw new Error(resp.status + ': ' + t.slice(0,400)); }
+    const data = await resp.json();
+    box.textContent = data.choices?.[0]?.message?.content || '(empty response)';
+  } catch(err){
+    console.error(err);
+    box.textContent = 'Error getting debrief: ' + err.message;
+  } finally {
+    debriefBtn.disabled = false; debriefBtn.textContent = '📋 Get post-call debrief (scored feedback)';
+  }
+});
+</script>
+</body>
+</html>
