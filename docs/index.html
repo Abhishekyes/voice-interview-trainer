@@ -290,6 +290,13 @@
         <span class="timer" id="liveTimer">00:00</span>
       </div>
       <div id="liveMsgs"><div class="hint" style="text-align:center; margin-top:120px;">Your live conversation transcript will appear here.</div></div>
+
+      <div class="card" id="liveKeywordsCard" hidden style="margin-bottom:16px;">
+        <b style="font-size:0.9em;">🔑 Keywords used in this interview</b>
+        <div class="hint" style="margin-top:4px;">Auto-detected technical terms from the 279-term glossary as they come up — hover an underlined term in the transcript above for its meaning inline, or scan the full list here.</div>
+        <div id="liveKeywordsList" class="vocabGrid"></div>
+      </div>
+
       <div class="btn-row">
         <button class="btn-secondary" id="debriefBtn" disabled>📋 Get post-call debrief (scored feedback)</button>
       </div>
@@ -1132,6 +1139,7 @@ levelFilterLive.value = '3';
 let livePc = null, liveDc = null, liveMic = null, liveTimerInt = null, liveStartTime = null;
 let liveAssistantBuffer = '', liveAssistantEl = null;
 const fullTranscriptTurns = [];
+const liveSeenTerms = new Set();
 
 const liveStatus = document.getElementById('liveStatus');
 const liveDot = document.getElementById('liveDot');
@@ -1152,14 +1160,37 @@ function setTalk(who){
 function clearLivePlaceholder(){
   if (liveMsgs.children.length === 1 && liveMsgs.children[0].classList.contains('hint')) liveMsgs.innerHTML = '';
 }
+function renderLiveKeywords(){
+  const card = document.getElementById('liveKeywordsCard');
+  const list = document.getElementById('liveKeywordsList');
+  if (!liveSeenTerms.size){ card.hidden = true; return; }
+  card.hidden = false;
+  const terms = Array.from(liveSeenTerms).sort((a,b) => a.localeCompare(b));
+  list.innerHTML = terms.map(t => `<div class="vocabChip"><b>${t}</b>${GLOSSARY[t]}</div>`).join('');
+}
+function trackLiveKeywords(found){
+  if (!found || !found.length) return;
+  let changed = false;
+  found.forEach(t => { if (!liveSeenTerms.has(t)){ liveSeenTerms.add(t); changed = true; } });
+  if (changed) renderLiveKeywords();
+  markTermsSeen(found);
+}
+function resetLiveKeywords(){
+  liveSeenTerms.clear();
+  document.getElementById('liveKeywordsList').innerHTML = '';
+  document.getElementById('liveKeywordsCard').hidden = true;
+}
+
 function addLiveMessage(role, text){
   clearLivePlaceholder();
   const div = document.createElement('div');
   div.className = 'msg ' + role;
-  div.innerHTML = '<span class="r">' + (role === 'user' ? 'You' : 'Interviewer') + '</span>' + text;
+  const { html, found } = highlightJargon(text);
+  div.innerHTML = '<span class="r">' + (role === 'user' ? 'You' : 'Interviewer') + '</span>' + html;
   liveMsgs.appendChild(div);
   liveMsgs.scrollTop = liveMsgs.scrollHeight;
   fullTranscriptTurns.push({ role, text });
+  trackLiveKeywords(found);
   return div;
 }
 function startTimer(){
@@ -1184,6 +1215,7 @@ startLiveBtn.addEventListener('click', async () => {
   startLiveBtn.disabled = true;
   setLiveStatus('Requesting session…');
   fullTranscriptTurns.length = 0;
+  resetLiveKeywords();
 
   try{
     const secretResp = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
@@ -1254,7 +1286,12 @@ function handleLiveEvent(e){
     liveMsgs.scrollTop = liveMsgs.scrollHeight;
   }
   if (ev.type === 'response.audio_transcript.done' || ev.type === 'response.done'){
-    if (liveAssistantEl && liveAssistantBuffer) fullTranscriptTurns.push({ role:'assistant', text: liveAssistantBuffer });
+    if (liveAssistantEl && liveAssistantBuffer){
+      const { html, found } = highlightJargon(liveAssistantBuffer);
+      liveAssistantEl.innerHTML = '<span class="r">Interviewer</span>' + html;
+      fullTranscriptTurns.push({ role:'assistant', text: liveAssistantBuffer });
+      trackLiveKeywords(found);
+    }
     liveAssistantEl = null; liveAssistantBuffer = '';
     setTalk(null);
   }
