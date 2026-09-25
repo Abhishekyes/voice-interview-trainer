@@ -143,6 +143,10 @@
   .csHintStep b{color:var(--accent3);}
   .conceptChips{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 2px;}
   .conceptChips .chip{background:#161c30; border:1px solid var(--border); color:var(--accent3); border-radius:999px; padding:4px 11px; font-size:0.78em; white-space:nowrap;}
+  .breakdownBox{background:#0f172a; border:1px solid var(--border); border-radius:10px; padding:11px 13px; margin:10px 0 2px; font-size:0.85em; line-height:1.55;}
+  .breakdownBox .bLine{margin-bottom:6px;}
+  .breakdownBox .bLine:last-child{margin-bottom:0;}
+  .breakdownBox b{color:var(--accent1);}
   .rubricGroup{margin-top:12px;}
   .rubricGroup:first-child{margin-top:0;}
   .rubricGroup b{color:var(--accent3); font-size:0.85em;}
@@ -280,6 +284,7 @@
       </div>
       <div class="qcurrent" id="csCurrent"></div>
       <div class="conceptChips" id="csConcepts"></div>
+      <div class="breakdownBox" id="csBreakdown"></div>
       <div class="btn-row">
         <button class="btn-secondary" id="csHintBtn" type="button">💡 Get a hint</button>
         <button class="btn-secondary" id="csOutlineBtn" type="button">🧭 Show full framework</button>
@@ -996,6 +1001,36 @@ const CASE_STUDY_CONCEPTS = {
   csmd025: ['Proxy metrics', 'North-star validation', 'Guardrail metrics', 'Online/offline correlation'],
 };
 
+/* Plain-language breakdown per question: what's actually being asked (so the question itself is never the
+   blocker), and a one-line note on what separates a surface-level answer from a senior/staff-level one. */
+const PROBLEM_BREAKDOWN = {
+  csmd001: { plain: "It's really asking: why not just `git add` your datasets, and what specific problem does DVC solve that git alone can't?", depth: "Don't just define DVC — explain the git-with-huge-files failure mode it exists to fix, in your own words." },
+  csmd002: { plain: "It's asking what 'model versioning' actually needs to track, and why that stops being optional once a model is live.", depth: "Go beyond a definition — name the concrete metadata (data version, hyperparameters, code commit) a real version has to carry." },
+  csmd003: { plain: "It wants you to spot what's wrong with a function doing five jobs at once, and name the principle that explains why.", depth: "Don't just define SRP — describe the specific god-function smell and sketch how you'd split it." },
+  csmd004: { plain: "It's a real ambiguous signal (one feature's DAU down, overall app DAU flat) — it wants your first moves to check if it's even real.", depth: "Senior-level means ruling out measurement artifacts BEFORE any modeling — make that instinct explicit." },
+  csmd005: { plain: "It wants a concrete class design that lets you add new feature transforms without touching existing code.", depth: "Sketch the actual interface/base-class shape, not just the principle's name — that's what makes it a strong answer." },
+  csmd006: { plain: "It's asking what specifically breaks once a team outgrows 'just log it in a spreadsheet' for experiments.", depth: "Name the concrete failure mode (can't reproduce, can't compare, lost params) that MLflow structurally fixes." },
+  csmd007: { plain: "It's a full mini case study — frame the problem, then explicitly say what you'd deliberately leave out of scope.", depth: "The 'what you'd NOT model' half is the differentiator — most candidates skip it; make sure yours doesn't." },
+  csmd008: { plain: "It wants your training code to not care WHICH feature store it's talking to — describe the abstraction that buys that.", depth: "Name the interface's method signature, and how a concrete implementation gets swapped in underneath it." },
+  csmd009: { plain: "It's asking exactly what automated checks stand between a new model and production — not just 'we have CI/CD'.", depth: "List the specific gates (data validation, champion-vs-challenger, fairness) that would actually BLOCK a bad model." },
+  csmd010: { plain: "It wants the org-design answer: what's shared platform infra vs. what each team owns independently, at real scale.", depth: "Think staff-level: name the ownership boundary explicitly, not just 'we'd use a feature store'." },
+  csmd011: { plain: "It's a code smell to diagnose — 15 subclasses each overriding half the methods is a specific, nameable violation.", depth: "Name BOTH principles it breaks, not just one, and sketch the redesign, not only the diagnosis." },
+  csmd012: { plain: "It wants the full decision framework for 'is this model safe to roll out wider' — stage by stage, metric by metric.", depth: "Cover pre-promotion AND post-promotion checks, and name the specific metric that triggers an automatic rollback." },
+  csmd013: { plain: "It's asking which loss metric fits 'deal size' data specifically — not a generic RMSE-vs-MAE definition dump.", depth: "Tie your answer to the actual data (a few huge deals exist) — that's what turns a textbook answer into a case-study answer." },
+  csmd014: { plain: "It wants the simplest possible diagnostic signal for overfitting, stated precisely — not just the definition.", depth: "Say exactly what gap, on exactly what plot, at exactly what point you'd call it overfitting." },
+  csmd015: { plain: "The cost asymmetry (missed churner far worse than a false alarm) is the whole point — your metric choice has to follow from it.", depth: "State which metric you'd actually optimize for, and why ROC-AUC specifically can mislead you here." },
+  csmd016: { plain: "It wants a specific scenario where standard k-fold silently leaks information, not just the definition of k-fold.", depth: "Name the concrete leak (same customer in train AND validation) and the exact fix (GroupKFold or a time split)." },
+  csmd017: { plain: "It's not 'define each search method' — it wants your decision rule for when you'd reach for each one.", depth: "Tie your answer to trial cost and dimensionality, not just a textbook comparison." },
+  csmd018: { plain: "It wants you to read an actual learning-curve shape and name the specific next optimization step from it.", depth: "Say exactly what you'd change for high bias vs. high variance — model capacity, regularization, or data." },
+  csmd019: { plain: "It's the hardest imbalance case — walk through metric choice, threshold, AND the real cost matrix, all three.", depth: "Don't stop at 'use PR-AUC' — go all the way to how you'd set the threshold using actual dollar costs." },
+  csmd020: { plain: "It's asking what you do AFTER tuning has plateaued — the next-level levers, not more grid search.", depth: "Name the specific levers (features, ensembling, error analysis) and how you'd decide which one is worth the effort." },
+  csmd021: { plain: "It's asking when result ORDER matters enough to justify NDCG over a simpler Recall@k.", depth: "Tie it to the actual UI — a search box vs. a grid — that's the real decision driver here." },
+  csmd022: { plain: "It's checking whether you know 'good at ranking' and 'well-calibrated' are two different things.", depth: "Walk from diagnosis (reliability diagram) all the way to a concrete fix (Platt scaling / isotonic regression)." },
+  csmd023: { plain: "It's asking what breaks when you use one metric across SKUs selling wildly different volumes.", depth: "Name the specific failure (MAPE exploding near zero) and propose a fix, not just a metric name." },
+  csmd024: { plain: "It wants a concrete scenario where the three F1 variants would actually disagree — not just their definitions.", depth: "Design the exact failure case (great overall, 0% recall on the rarest class) and say which F1 variant catches it." },
+  csmd025: { plain: "It's the classic 'can't optimize what you actually care about' problem — walk the full chain: proxy, guardrails, validation.", depth: "Staff-level means naming how you'd catch the proxy silently diverging from GMV months later, not just picking one." },
+};
+
 /* Progressive, per-question hint ladders — nudges toward the shape of a strong answer, never the answer itself. */
 const CASE_STUDY_HINTS = {
   csmd001: [
@@ -1385,6 +1420,10 @@ function selectCaseStudyQuestion(q){
   document.getElementById('csCurrent').innerHTML = html;
   const concepts = CASE_STUDY_CONCEPTS[q.id] || [];
   document.getElementById('csConcepts').innerHTML = concepts.map(c => `<span class="chip">${c}</span>`).join('');
+  const breakdown = PROBLEM_BREAKDOWN[q.id];
+  document.getElementById('csBreakdown').innerHTML = breakdown
+    ? `<div class="bLine">📌 <b>In plain terms:</b> ${breakdown.plain}</div><div class="bLine">🎯 <b>Going deep:</b> ${breakdown.depth}</div>`
+    : '';
   const hintBox = document.getElementById('csHintBox');
   const outlineBox = document.getElementById('csOutlineBox');
   hintBox.hidden = true; hintBox.innerHTML = '';
