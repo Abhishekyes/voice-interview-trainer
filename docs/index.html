@@ -112,6 +112,7 @@
   /* ===== Search / nav / shuffle / bookmarks / outline ===== */
   .qtoolbar{display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;}
   .qtoolbar input[type=text]{flex:2; min-width:180px;}
+  .qtoolbar select{background:#0c1120; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:0.86em; min-width:160px;}
   .bmToggle{display:flex; align-items:center; gap:6px; font-size:0.82em; color:var(--muted); white-space:nowrap;}
   .bmToggle input{width:auto;}
   .qitem{position:relative;}
@@ -122,6 +123,24 @@
   .outlineBox{background:#0c1120; border:1px solid var(--border); border-radius:10px; padding:14px; margin-top:10px; font-size:0.87em; line-height:1.6;}
   .outlineBox ol{margin:6px 0 0; padding-left:20px;}
   .outlineBox li{margin-bottom:5px;}
+
+  /* ===== Case Studies tab ===== */
+  .csFrameworkList{margin:10px 0 0; padding-left:20px; font-size:0.88em; line-height:1.7; color:var(--text);}
+  .csTableWrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px;}
+  .csTable{width:100%; border-collapse:collapse; font-size:0.86em;}
+  .csTable th{text-align:left; padding:10px 12px; background:#141b2e; color:var(--muted); font-size:0.82em; border-bottom:1px solid var(--border); white-space:nowrap;}
+  .csTable td{padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:top;}
+  .csTable tr:last-child td{border-bottom:none;}
+  .csTable tbody tr{cursor:pointer;}
+  .csTable tbody tr:hover{background:#1c2438;}
+  .csTable tbody tr.selected{background:#1d2c4d;}
+  .csStatus{white-space:nowrap; font-size:0.9em;}
+  .csTable tr.csStepHeader{cursor:default;}
+  .csTable tr.csStepHeader:hover{background:transparent;}
+  .csTable tr.csStepHeader td{background:#12182a; color:var(--accent3); font-weight:600; font-size:0.8em; letter-spacing:0.02em; padding:8px 12px; border-bottom:1px solid var(--border);}
+  .csHintStep{padding:8px 0; border-bottom:1px dashed var(--border);}
+  .csHintStep:last-child{border-bottom:none;}
+  .csHintStep b{color:var(--accent3);}
 
   /* ===== Loading overlay & auth bar ===== */
   #loadingOverlay{
@@ -152,6 +171,7 @@
 
   <div class="tabs">
     <div class="tab active" data-tab="free">Free Practice<span class="badge">$0 · no key needed</span></div>
+    <div class="tab" data-tab="casestudy">Case Studies<span class="badge">Adobe / MAANG-style</span></div>
     <div class="tab" data-tab="feedback">AI Feedback<span class="badge">free models available</span></div>
     <div class="tab" data-tab="textinterview">AI Text Interview<span class="badge">free models available</span></div>
     <div class="tab" data-tab="live">Live Voice Interview<span class="badge">uses OpenAI key</span></div>
@@ -208,6 +228,50 @@
       <b style="font-size:0.9em;">📖 Vocabulary in this question</b>
       <div class="hint" style="margin-top:4px;">Auto-detected technical terms from a 279-term glossary, explained inline. Seen terms are tracked on your Progress tab.</div>
       <div id="jargonList" class="vocabGrid"></div>
+    </div>
+  </div>
+
+  <!-- ============ CASE STUDIES TAB ============ -->
+  <div class="panel" id="panel-casestudy">
+    <div class="card">
+      <div class="free-banner">🏢 Adobe / MAANG-style case study prep, in one dedicated place — broken into the 8 main ML concepts a senior/staff Applied Data Scientist round drills, practiced one concept at a time rather than as one giant end-to-end scenario.</div>
+      <b style="font-size:0.92em;">🧭 The 8-step framework, main concepts first</b>
+      <ol class="csFrameworkList" id="csFramework"></ol>
+    </div>
+
+    <div class="card">
+      <div class="statRow" id="csStats"></div>
+      <div class="qtoolbar">
+        <input type="text" id="csSearch" placeholder="🔍 Search case study questions…"/>
+        <select id="csStepFilter">
+          <option value="">All 8 steps</option>
+        </select>
+        <label class="bmToggle"><input type="checkbox" id="csBmOnlyFilter"/> 🔖 Bookmarked only</label>
+      </div>
+      <div class="csTableWrap">
+        <table class="csTable" id="csTable">
+          <thead><tr><th>Level</th><th>Question</th><th>Status</th><th></th></tr></thead>
+          <tbody id="csTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" id="csDetailCard" hidden>
+      <div class="navRow">
+        <button class="btn-ghost" id="csPrevBtn" type="button">◀ Prev</button>
+        <button class="btn-ghost" id="csNextBtn" type="button">Next ▶</button>
+        <span class="qpos" id="csPos"></span>
+      </div>
+      <div class="qcurrent" id="csCurrent"></div>
+      <div class="btn-row">
+        <button class="btn-secondary" id="csHintBtn" type="button">💡 Get a hint</button>
+        <button class="btn-secondary" id="csOutlineBtn" type="button">🧭 Show full framework</button>
+        <button class="btn-secondary btn-toggle" id="csBookmarkBtn" type="button">🔖 Bookmark</button>
+        <button class="btn-secondary" id="csMarkBtn" type="button">✅ Mark as practiced</button>
+        <button class="btn-primary" id="csPracticeBtn" type="button">🎙️ Practice this question (record my answer) →</button>
+      </div>
+      <div class="outlineBox" id="csHintBox" hidden></div>
+      <div class="outlineBox" id="csOutlineBox" hidden></div>
     </div>
   </div>
 
@@ -843,6 +907,346 @@ document.getElementById('outlineBtn').addEventListener('click', () => {
   btn.textContent = '💡 Hide answer outline';
 });
 
+/* ======================= CASE STUDIES TAB (Adobe / MAANG-style, dedicated practice place) ======================= */
+const CASE_STUDY_ROUND = 'Case Studies & MLOps Deployment';
+
+/* The 8-step framework a strong applied-DS answer moves through — main ML concepts first,
+   not one giant end-to-end scenario. Every case study question is tagged to exactly one step. */
+const CASE_STUDY_STEPS = [
+  { key: 'framing',      label: '1. Problem Framing & Scoping',                 desc: 'Clarify the business decision, define the target and success metric, and state what you will deliberately NOT model.' },
+  { key: 'eda',          label: '2. EDA & Data Understanding',                  desc: 'Understand the data, pick a splitting strategy, and catch leakage before it ever reaches modeling.' },
+  { key: 'metrics',      label: '3. Evaluation Metrics',                        desc: 'Pick the metric(s) that reflect the real cost of errors — not just accuracy — including under class imbalance.' },
+  { key: 'optimization', label: '4. Optimization & Tuning',                     desc: 'Search hyperparameters, read learning curves, and know exactly which lever to pull next.' },
+  { key: 'versioning',   label: '5. MLOps: Versioning & Experiment Tracking',   desc: 'Version data, code, and models so every result is reproducible, comparable, and reversible.' },
+  { key: 'deployment',   label: '6. MLOps: Deployment & CI/CD',                 desc: 'Ship the model safely — packaging, promotion pipelines, and team/platform ownership boundaries.' },
+  { key: 'solid',        label: '7. Software Design (SOLID)',                   desc: 'Write ML code that stays maintainable as the pipeline, the models, and the team all grow.' },
+  { key: 'monitoring',   label: '8. Monitoring & Safe Rollout',                 desc: 'Roll out gradually, watch the signals that actually matter, and roll back automatically when they trip.' }
+];
+
+/* Maps every case study question id to the single step it primarily exercises. */
+const STEP_OF_QUESTION = {
+  csmd004: 'framing', csmd007: 'framing',
+  csmd016: 'eda',
+  csmd013: 'metrics', csmd014: 'metrics', csmd015: 'metrics', csmd019: 'metrics',
+  csmd017: 'optimization', csmd018: 'optimization', csmd020: 'optimization',
+  csmd001: 'versioning', csmd002: 'versioning', csmd006: 'versioning',
+  csmd009: 'deployment', csmd010: 'deployment',
+  csmd003: 'solid', csmd005: 'solid', csmd008: 'solid', csmd011: 'solid',
+  csmd012: 'monitoring'
+};
+function stepOf(qid){ return STEP_OF_QUESTION[qid] || null; }
+function stepLabel(key){ const s = CASE_STUDY_STEPS.find(x => x.key === key); return s ? s.label : 'Other'; }
+
+/* Progressive, per-question hint ladders — nudges toward the shape of a strong answer, never the answer itself. */
+const CASE_STUDY_HINTS = {
+  csmd001: [
+    "Think about what happens to a git repo's size and diffability once multi-GB datasets are committed directly into it.",
+    'DVC keeps large files out of git history while still giving reproducible, versioned pointers to exact dataset versions — how does it actually pull that off (content-addressable storage + a remote)?',
+    "Tie it to reproducibility: if someone checks out an old commit, how does DVC make sure they get the dataset version that matches — not just whatever's sitting in the remote today?"
+  ],
+  csmd002: [
+    'Two data scientists retrain the same architecture on different days. What could differ between the resulting artifacts, and why would you need to tell them apart in production?',
+    'Think about rollback: if a newly deployed model starts making bad predictions, what would you need on hand to revert quickly and safely?',
+    "Model versioning isn't just a filename — what metadata should travel WITH a version (training data version, hyperparameters, metrics, code commit)?"
+  ],
+  csmd003: [
+    "Picture a `process_data()` function that loads, cleans, engineers features, trains, and evaluates — all in 200 lines. What breaks when only the cleaning logic needs to change?",
+    "SRP says a unit of code should have exactly one reason to change. List the separate 'reasons to change' hiding inside that one god function.",
+    'How would you refactor it — what would the smaller pieces look like, and how would you test each one in isolation?'
+  ],
+  csmd004: [
+    "Before touching any data, what's the very first question you'd ask the stakeholder to scope this properly?",
+    'Rule out measurement issues first: could a tracking/logging change, a redirect, or a UI move explain the drop without any real behavior change?',
+    "If it's real, how would you segment (platform, cohort, geography, new vs. returning) to isolate where the decline is concentrated?"
+  ],
+  csmd005: [
+    'OCP: open for extension, closed for modification. What design lets you ADD a new transform without editing any existing transform class?',
+    'Think about a shared interface (e.g. `BaseTransformer.transform(df)`) that every transform implements — how does the pipeline then just iterate a list of these?',
+    'How would a plugin/registry pattern let new transforms be added — or swapped at runtime — without touching the pipeline code at all?'
+  ],
+  csmd006: [
+    "A spreadsheet can hold numbers — what can't it easily capture about an experiment run (exact code version, hyperparameters, artifacts, environment)?",
+    'Think about scale: what breaks when five people are each logging twenty runs a week into one shared spreadsheet?',
+    'Connect it to reproducibility and comparison — how does MLflow let you pull up the exact code + data + params behind a metric, and compare runs side by side?'
+  ],
+  csmd007: [
+    "Start with framing: what's the business decision this model needs to drive, and what's the cost of a false positive vs. a false negative here?",
+    "Think about the target definition — 'converts within 30 days' — what data-leakage risk shows up if you're not careful about the time window for your features?",
+    "For 'what you'd deliberately NOT model' — think about features that wouldn't be available at prediction time, or complexity that wouldn't earn its cost at this stage."
+  ],
+  csmd008: [
+    "DIP: high-level modules shouldn't depend on low-level modules — both should depend on abstractions. What's the 'high-level' module here, and what's the 'low-level' detail?",
+    'Think about an interface like `FeatureStoreClient.get_features(entity_id)` — how does the training pipeline depend only on that interface?',
+    "How would you inject a specific implementation (e.g. Feast vs. Redis) at runtime, without the training code ever knowing which one it's using?"
+  ],
+  csmd009: [
+    'List the stages a model change would flow through before reaching production — what would each stage need to check?',
+    "Think about a 'champion vs. challenger' pattern — how do you automatically decide the new model is actually better before promoting it?",
+    'What specific automated checks would BLOCK a promotion outright (data validation failures, metric-regression thresholds, fairness/bias checks)?'
+  ],
+  csmd010: [
+    'Start with the boundary: what should be a shared platform capability, and what should each team own independently?',
+    'Think about a central feature store and model registry as shared infra — how do they stop teams duplicating work while still letting each team deploy on its own schedule?',
+    "How would you handle versioning and namespacing so Team A's model can't accidentally clash with Team B's feature definitions?"
+  ],
+  csmd011: [
+    '15 subclasses, each overriding half the methods and leaving the rest as no-ops — which SOLID principle says a subclass should be fully substitutable for its base class?',
+    'No-op overrides are a smell for Interface Segregation too — are subclasses being forced to implement methods they never actually use?',
+    'How would you split the fat base class into smaller, focused interfaces or mixins so each subclass only implements what it uses?'
+  ],
+  csmd012: [
+    'Think in stages: what runs BEFORE a model is even considered for promotion (offline checks), and what runs AFTER it goes live (online checks)?',
+    'For shadow deployment and canary rollout — what specific metric would decide whether to widen traffic or pull back?',
+    'What would trigger an AUTOMATIC rollback, rather than requiring a human to notice and act?'
+  ],
+  csmd013: [
+    'What happens to the loss when one data point is off by 100 vs. ten points each off by 10 — does RMSE treat that the same as MAE?',
+    'RMSE squares the error before averaging — which metric is more sensitive to a few large outliers, and why would that matter for "deal size" where a few huge deals exist?',
+    'If the business genuinely cares about the typical error (not being wrecked by rare mega-deals), which metric matches that intent — and when would you actually WANT extra sensitivity to big misses?'
+  ],
+  csmd014: [
+    "In one sentence: what is the model doing when it 'overfits' — memorizing the training data vs. learning generalizable patterns?",
+    'If training accuracy keeps climbing but validation accuracy flatlines or drops, what does that growing gap tell you?',
+    'Name the concrete comparison you would plot to catch this early, and describe what a healthy gap looks like versus an unhealthy one.'
+  ],
+  csmd015: [
+    'If missing a churner costs far more than a false alarm, would you rather optimize for catching more true churners or avoiding false flags?',
+    'Precision and recall trade off against each other — which one do you protect, even at some cost to the other, given that asymmetry?',
+    'ROC-AUC is threshold-independent and can look great even under severe class imbalance — why might it mislead you here, and what would you check instead (e.g. PR-AUC, or recall at a fixed precision)?'
+  ],
+  csmd016: [
+    'Standard k-fold assumes each row is independent — what if your data actually has groups, like multiple rows per customer, or a time ordering?',
+    "If the SAME customer's rows land in both the train and validation folds, what is the model secretly learning that it shouldn't?",
+    'Name the fix — GroupKFold to keep entities together, or a time-based split for anything with temporal order — and explain why it prevents the leak.'
+  ],
+  csmd017: [
+    'Grid search checks every combination on a fixed grid — how does its cost explode as you add more hyperparameters?',
+    'Random search samples instead of enumerating — why does it often find a good region faster in high-dimensional spaces?',
+    'Bayesian optimization uses past trial results to choose the next point intelligently — when is that extra sophistication worth it (expensive trials), and when is it overkill (cheap trials, wide budget)?'
+  ],
+  csmd018: [
+    'On a learning curve, what does it look like when both train and validation error are high and close together — bias or variance?',
+    'What does it look like when train error is low but validation error stays high, with a big gap between them — bias or variance?',
+    'For high bias, what optimization step increases model capacity (more features, less regularization, a bigger model)? For high variance, what step reduces it (more data, regularization, a simpler model)?'
+  ],
+  csmd019: [
+    "With 0.1% positives, what happens to a model that just predicts 'not fraud' every time — and why does accuracy hide that failure completely?",
+    'Which metrics actually reflect performance on the rare class (precision/recall on the positive class, PR-AUC) instead of being dominated by the 99.9% majority?',
+    'Once you have a good ranking model, how do you pick the decision threshold using the REAL cost matrix (cost of a missed fraud vs. cost of a false alarm) instead of the default 0.5?'
+  ],
+  csmd020: [
+    'If hyperparameter tuning has plateaued, is the bottleneck really the model — or could it be the FEATURES the model has to work with?',
+    "Ensembling/stacking combines multiple models' errors — why does that sometimes buy accuracy that no single model's tuning ever could?",
+    'Error analysis on misclassified segments tells you WHERE the model is failing — how would that finding point you toward the next specific lever (a new feature, more data for a segment, a specialized sub-model) rather than guessing?'
+  ]
+};
+let csSelectedQuestion = null;
+let csHintIndex = 0;
+let csFilteredList = [];
+
+function caseStudyQuestions(){ return QUESTIONS.filter(q => q.round === CASE_STUDY_ROUND); }
+
+function renderCaseStudyFramework(){
+  const el = document.getElementById('csFramework');
+  if (!el) return;
+  el.innerHTML = CASE_STUDY_STEPS.map(s => `<li><b>${s.label}</b> — ${s.desc}</li>`).join('');
+}
+
+let csStepFilterPopulated = false;
+function populateCsStepFilter(){
+  const sel = document.getElementById('csStepFilter');
+  if (!sel || csStepFilterPopulated) return;
+  csStepFilterPopulated = true;
+  sel.innerHTML = '<option value="">All 8 steps</option>'
+    + CASE_STUDY_STEPS.map(s => `<option value="${s.key}">${s.label}</option>`).join('');
+}
+
+function renderCaseStudyStats(){
+  const all = caseStudyQuestions();
+  const practicedCount = all.filter(q => progress.practiced[q.id]).length;
+  const bookmarkedCount = all.filter(q => progress.flagged[q.id]).length;
+  const el = document.getElementById('csStats');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="statTile"><div class="n">${practicedCount}/${all.length}</div><div class="l">practiced</div></div>
+    <div class="statTile"><div class="n">${all.length ? Math.round(practicedCount/all.length*100) : 0}%</div><div class="l">coverage</div></div>
+    <div class="statTile"><div class="n">${bookmarkedCount}</div><div class="l">🔖 bookmarked</div></div>
+  `;
+}
+
+function renderCaseStudyTable(){
+  const search = ((document.getElementById('csSearch') || {}).value || '').trim().toLowerCase();
+  const bmOnly = !!(document.getElementById('csBmOnlyFilter') || {}).checked;
+  const stepFilter = (document.getElementById('csStepFilter') || {}).value || '';
+  const stepOrder = CASE_STUDY_STEPS.map(s => s.key);
+  csFilteredList = caseStudyQuestions()
+    .filter(q => (!search || q.q.toLowerCase().includes(search))
+              && (!bmOnly || !!progress.flagged[q.id])
+              && (!stepFilter || stepOf(q.id) === stepFilter))
+    .sort((a,b) => {
+      const sa = stepOrder.indexOf(stepOf(a.id)), sb = stepOrder.indexOf(stepOf(b.id));
+      return sa - sb || a.level - b.level || a.id.localeCompare(b.id);
+    });
+  const body = document.getElementById('csTableBody');
+  if (!body) return;
+  if (!csFilteredList.length){
+    body.innerHTML = '<tr><td colspan="4" class="hint" style="cursor:default;">No case study questions match these filters.</td></tr>';
+  } else {
+    let lastStep;
+    let rows = '';
+    csFilteredList.forEach(q => {
+      const qStep = stepOf(q.id);
+      if (!stepFilter && qStep !== lastStep){
+        lastStep = qStep;
+        rows += `<tr class="csStepHeader"><td colspan="4">${stepLabel(qStep)}</td></tr>`;
+      }
+      const done = progress.practiced[q.id] ? '✅' : '';
+      const bm = progress.flagged[q.id] ? '🔖' : '';
+      const sel = csSelectedQuestion && csSelectedQuestion.id === q.id ? ' selected' : '';
+      rows += `<tr data-qid="${q.id}" class="${sel.trim()}">
+        <td><span class="lvl" style="background:${levelColorStyle(q.level)}">L${q.level}</span></td>
+        <td>${q.q}</td>
+        <td class="csStatus">${done} ${bm}</td>
+        <td><button class="btn-ghost" type="button">Open →</button></td>
+      </tr>`;
+    });
+    body.innerHTML = rows;
+    body.querySelectorAll('tr[data-qid]').forEach(tr => {
+      tr.addEventListener('click', () => {
+        const q = csFilteredList.find(x => x.id === tr.dataset.qid);
+        if (q) selectCaseStudyQuestion(q);
+      });
+    });
+  }
+  renderCaseStudyStats();
+}
+
+function updateCsPos(){
+  const posEl = document.getElementById('csPos');
+  if (!posEl) return;
+  if (!csSelectedQuestion || !csFilteredList.length){ posEl.textContent = ''; return; }
+  const idx = csFilteredList.findIndex(q => q.id === csSelectedQuestion.id);
+  posEl.textContent = idx === -1 ? `${csFilteredList.length} in list` : `${idx + 1} of ${csFilteredList.length}`;
+}
+
+function updateCsBookmarkBtn(){
+  const btn = document.getElementById('csBookmarkBtn');
+  if (!btn || !csSelectedQuestion) return;
+  const isFlagged = !!progress.flagged[csSelectedQuestion.id];
+  btn.textContent = isFlagged ? '🔖 Bookmarked' : '🔖 Bookmark';
+  btn.classList.toggle('active', isFlagged);
+}
+
+function selectCaseStudyQuestion(q){
+  csSelectedQuestion = q;
+  csHintIndex = 0;
+  document.getElementById('csDetailCard').hidden = false;
+  const { html } = highlightJargon(q.q);
+  document.getElementById('csCurrent').innerHTML = html;
+  const hintBox = document.getElementById('csHintBox');
+  const outlineBox = document.getElementById('csOutlineBox');
+  hintBox.hidden = true; hintBox.innerHTML = '';
+  outlineBox.hidden = true; outlineBox.innerHTML = '';
+  document.getElementById('csHintBtn').textContent = '💡 Get a hint';
+  document.getElementById('csOutlineBtn').textContent = '🧭 Show full framework';
+  updateCsPos();
+  updateCsBookmarkBtn();
+  renderCaseStudyTable();
+  const row = document.querySelector(`#csTableBody tr[data-qid="${CSS.escape(q.id)}"]`);
+  if (row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest' });
+  const card = document.getElementById('csDetailCard');
+  if (card && card.scrollIntoView) card.scrollIntoView({ block: 'nearest' });
+}
+
+function renderCaseStudyTab(){
+  renderCaseStudyFramework();
+  populateCsStepFilter();
+  renderCaseStudyTable();
+  if (csSelectedQuestion){ updateCsPos(); updateCsBookmarkBtn(); }
+}
+
+function csGoToOffset(offset){
+  if (!csFilteredList.length) return;
+  let idx = csSelectedQuestion ? csFilteredList.findIndex(q => q.id === csSelectedQuestion.id) : -1;
+  if (idx === -1) idx = offset > 0 ? -1 : 0;
+  idx = (idx + offset + csFilteredList.length) % csFilteredList.length;
+  selectCaseStudyQuestion(csFilteredList[idx]);
+}
+document.getElementById('csPrevBtn').addEventListener('click', () => csGoToOffset(-1));
+document.getElementById('csNextBtn').addEventListener('click', () => csGoToOffset(1));
+document.getElementById('csSearch').addEventListener('input', () => renderCaseStudyTable());
+document.getElementById('csBmOnlyFilter').addEventListener('change', () => renderCaseStudyTable());
+document.getElementById('csStepFilter').addEventListener('change', () => renderCaseStudyTable());
+
+document.getElementById('csHintBtn').addEventListener('click', () => {
+  if (!csSelectedQuestion){ alert('Pick a question from the table first.'); return; }
+  const box = document.getElementById('csHintBox');
+  const btn = document.getElementById('csHintBtn');
+  const ladder = CASE_STUDY_HINTS[csSelectedQuestion.id] || [];
+  if (!ladder.length){ alert('No hints written for this question yet.'); return; }
+  if (csHintIndex >= ladder.length){
+    box.innerHTML = "<b>💡 Hints</b><div class=\"hint\" style=\"margin:4px 0 8px;\">That's the full ladder — if you're still stuck, try the full framework button instead.</div>"
+      + ladder.map((h, i) => `<div class="csHintStep"><b>Hint ${i+1}:</b> ${h}</div>`).join('');
+    box.hidden = false;
+    return;
+  }
+  csHintIndex += 1;
+  box.innerHTML = '<b>💡 Hints</b><div class="hint" style="margin:4px 0 8px;">One nudge at a time — try to answer before asking for the next one.</div>'
+    + ladder.slice(0, csHintIndex).map((h, i) => `<div class="csHintStep"><b>Hint ${i+1}:</b> ${h}</div>`).join('');
+  box.hidden = false;
+  btn.textContent = csHintIndex < ladder.length ? `💡 Get hint ${csHintIndex + 1} of ${ladder.length}` : '💡 All hints shown';
+});
+
+document.getElementById('csOutlineBtn').addEventListener('click', () => {
+  if (!csSelectedQuestion){ alert('Pick a question from the table first.'); return; }
+  const box = document.getElementById('csOutlineBox');
+  const btn = document.getElementById('csOutlineBtn');
+  if (!box.hidden){ box.hidden = true; btn.textContent = '🧭 Show full framework'; return; }
+  const steps = ROUND_OUTLINES[CASE_STUDY_ROUND] || DEFAULT_OUTLINE;
+  box.innerHTML = '<b>🧭 What a strong answer typically covers</b>'
+    + '<div class="hint" style="margin:4px 0 8px;">The full structural guide, not the answer itself.</div>'
+    + '<ol>' + steps.map(s => `<li>${s}</li>`).join('') + '</ol>';
+  box.hidden = false;
+  btn.textContent = '🧭 Hide full framework';
+});
+
+document.getElementById('csBookmarkBtn').addEventListener('click', () => {
+  if (!csSelectedQuestion){ alert('Pick a question first.'); return; }
+  toggleFlag(csSelectedQuestion.id);
+  updateCsBookmarkBtn();
+  renderCaseStudyTable();
+});
+
+document.getElementById('csMarkBtn').addEventListener('click', () => {
+  if (!csSelectedQuestion){ alert('Pick a question first.'); return; }
+  markPracticed(csSelectedQuestion.id);
+  renderCaseStudyTable();
+  const btn = document.getElementById('csMarkBtn');
+  const orig = btn.textContent;
+  btn.textContent = '✅ Marked!';
+  setTimeout(() => { btn.textContent = orig; }, 1200);
+});
+
+/* Practicing (recording, transcript, language check) stays on the Free Practice tab so there's one
+   reliable place owning the microphone/speech-recognition state — this just jumps you there,
+   pre-loaded on the exact case study question, filtered to this domain. */
+document.getElementById('csPracticeBtn').addEventListener('click', () => {
+  if (!csSelectedQuestion) { alert('Pick a question from the table first.'); return; }
+  const q = csSelectedQuestion;
+  roundFilter.value = CASE_STUDY_ROUND;
+  levelFilter.value = '0';
+  if (qSearchInput) qSearchInput.value = '';
+  if (bmOnlyFilter) bmOnlyFilter.checked = false;
+  renderQList();
+  selectQuestion(q);
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('.tab[data-tab="free"]').classList.add('active');
+  document.getElementById('panel-free').classList.add('active');
+  const el = document.getElementById('qcurrent');
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+});
+
 document.getElementById('readAloudBtn').addEventListener('click', () => {
   if (!selectedQuestion){ alert('Pick a question first.'); return; }
   if (!('speechSynthesis' in window)){ alert('Speech synthesis not supported in this browser.'); return; }
@@ -992,8 +1396,10 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'progress') renderProgressTab();
+    if (tab.dataset.tab === 'casestudy') renderCaseStudyTab();
   });
 });
+renderCaseStudyTab();
 
 /* ======================= GLOSSARY TAB ======================= */
 document.getElementById('glossaryCount').textContent = Object.keys(GLOSSARY).length + '+';
