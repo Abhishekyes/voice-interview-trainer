@@ -141,6 +141,18 @@
   .csHintStep{padding:8px 0; border-bottom:1px dashed var(--border);}
   .csHintStep:last-child{border-bottom:none;}
   .csHintStep b{color:var(--accent3);}
+  .conceptChips{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 2px;}
+  .conceptChips .chip{background:#161c30; border:1px solid var(--border); color:var(--accent3); border-radius:999px; padding:4px 11px; font-size:0.78em; white-space:nowrap;}
+  .rubricGroup{margin-top:12px;}
+  .rubricGroup:first-child{margin-top:0;}
+  .rubricGroup b{color:var(--accent3); font-size:0.85em;}
+  .rubricGroup ul{margin:5px 0 0; padding-left:18px; font-size:0.85em; line-height:1.65;}
+  .rubricGroup li{margin-bottom:3px;}
+  .metricRow{margin:8px 0; padding:9px 11px; background:#0c1120; border:1px solid var(--border); border-radius:8px;}
+  .metricName{font-weight:700; color:var(--accent1); font-size:0.87em;}
+  .metricDef{font-size:0.82em; color:var(--muted); margin:2px 0 5px; line-height:1.5;}
+  .metricUse, .metricAvoid{font-size:0.81em; line-height:1.55;}
+  .metricUse b, .metricAvoid b{color:var(--text);}
 
   /* ===== Loading overlay & auth bar ===== */
   #loadingOverlay{
@@ -237,6 +249,10 @@
       <div class="free-banner">🏢 Adobe / MAANG-style case study prep, in one dedicated place — broken into the 8 main ML concepts a senior/staff Applied Data Scientist round drills, practiced one concept at a time rather than as one giant end-to-end scenario.</div>
       <b style="font-size:0.92em;">🧭 The 8-step framework, main concepts first</b>
       <ol class="csFrameworkList" id="csFramework"></ol>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn-secondary" id="csMetricsBtn" type="button">📐 Metrics Playbook — every metric, one place</button>
+      </div>
+      <div class="outlineBox" id="csMetricsBox" hidden></div>
     </div>
 
     <div class="card">
@@ -263,6 +279,7 @@
         <span class="qpos" id="csPos"></span>
       </div>
       <div class="qcurrent" id="csCurrent"></div>
+      <div class="conceptChips" id="csConcepts"></div>
       <div class="btn-row">
         <button class="btn-secondary" id="csHintBtn" type="button">💡 Get a hint</button>
         <button class="btn-secondary" id="csOutlineBtn" type="button">🧭 Show full framework</button>
@@ -272,6 +289,18 @@
       </div>
       <div class="outlineBox" id="csHintBox" hidden></div>
       <div class="outlineBox" id="csOutlineBox" hidden></div>
+    </div>
+
+    <div class="card" id="csSubmitCard" hidden>
+      <b style="font-size:0.92em;">📝 Submit your solution for review</b>
+      <div class="hint" style="margin:4px 0 10px;">Paste code or a written approach for the question above. The self-check rubric is instant and free. AI review reuses the provider + key you saved on the AI Feedback tab (set it there once).</div>
+      <textarea id="csSubmissionText" rows="8" placeholder="Paste your code or written solution here…"></textarea>
+      <div class="btn-row">
+        <button class="btn-secondary" id="csSelfCheckBtn" type="button">✅ Self-check rubric</button>
+        <button class="btn-primary" id="csAiReviewBtn" type="button">🤖 Get AI review</button>
+      </div>
+      <div class="outlineBox" id="csSelfCheckBox" hidden></div>
+      <div class="debrief" id="csReviewResult" hidden></div>
     </div>
   </div>
 
@@ -928,6 +957,7 @@ const STEP_OF_QUESTION = {
   csmd004: 'framing', csmd007: 'framing',
   csmd016: 'eda',
   csmd013: 'metrics', csmd014: 'metrics', csmd015: 'metrics', csmd019: 'metrics',
+  csmd021: 'metrics', csmd022: 'metrics', csmd023: 'metrics', csmd024: 'metrics', csmd025: 'metrics',
   csmd017: 'optimization', csmd018: 'optimization', csmd020: 'optimization',
   csmd001: 'versioning', csmd002: 'versioning', csmd006: 'versioning',
   csmd009: 'deployment', csmd010: 'deployment',
@@ -936,6 +966,35 @@ const STEP_OF_QUESTION = {
 };
 function stepOf(qid){ return STEP_OF_QUESTION[qid] || null; }
 function stepLabel(key){ const s = CASE_STUDY_STEPS.find(x => x.key === key); return s ? s.label : 'Other'; }
+
+/* Concept/tool tags per question — the specific techniques a strong answer should name, shown as chips. */
+const CASE_STUDY_CONCEPTS = {
+  csmd001: ['DVC', 'Content-addressable storage', 'Remote storage (S3/GCS)', 'Data lineage'],
+  csmd002: ['Model registry', 'Semantic versioning', 'Artifact store', 'Rollback'],
+  csmd003: ['Single Responsibility Principle', 'God function', 'Function decomposition', 'Cohesion'],
+  csmd004: ['Funnel analysis', 'Segmentation', "Simpson's Paradox", 'Instrumentation bugs', 'Cohort analysis'],
+  csmd005: ['Open/Closed Principle', 'Strategy pattern', 'Abstract base class', 'Plugin architecture'],
+  csmd006: ['MLflow', 'Experiment tracking', 'Hyperparameter logging', 'Reproducibility'],
+  csmd007: ['Problem framing', 'Feature engineering', 'Class imbalance', 'Time-to-event framing', 'Scoping'],
+  csmd008: ['Dependency Inversion Principle', 'Abstraction/interface', 'Adapter pattern'],
+  csmd009: ['CI/CD for ML', 'Champion/challenger', 'Automated data validation', 'Gated deployment'],
+  csmd010: ['Model registry', 'Feature store', 'Multi-tenant platform design', 'Ownership boundaries'],
+  csmd011: ['Liskov Substitution Principle', 'Interface Segregation Principle', 'Composition over inheritance'],
+  csmd012: ['Data drift (PSI/KL divergence)', 'Shadow deployment', 'Canary rollout', 'Automatic rollback'],
+  csmd013: ['RMSE', 'MAE', 'Outlier sensitivity', 'L1 vs L2 loss'],
+  csmd014: ['Overfitting', 'Train/validation gap', 'Learning curves', 'Regularization'],
+  csmd015: ['Precision', 'Recall', 'F1', 'ROC-AUC', 'Cost-sensitive thresholding'],
+  csmd016: ['K-fold cross-validation', 'GroupKFold', 'Time-series split', 'Data leakage'],
+  csmd017: ['Grid search', 'Random search', 'Bayesian optimization', 'Search budget'],
+  csmd018: ['Bias-variance tradeoff', 'Learning curves', 'Regularization', 'Model capacity'],
+  csmd019: ['PR-AUC', 'Threshold tuning', 'Cost-sensitive learning', 'SMOTE / class weighting'],
+  csmd020: ['Feature engineering iteration', 'Ensembling/stacking', 'Error analysis'],
+  csmd021: ['NDCG@k', 'Recall@k', 'Ranking evaluation', 'Position bias'],
+  csmd022: ['Calibration', 'Reliability diagram', 'Brier score', 'Platt scaling / isotonic regression'],
+  csmd023: ['MAPE pitfalls', 'RMSE vs MAE', 'Per-segment normalization', 'Weighted aggregation'],
+  csmd024: ['Macro F1', 'Micro F1', 'Weighted F1', 'Class support imbalance'],
+  csmd025: ['Proxy metrics', 'North-star validation', 'Guardrail metrics', 'Online/offline correlation'],
+};
 
 /* Progressive, per-question hint ladders — nudges toward the shape of a strong answer, never the answer itself. */
 const CASE_STUDY_HINTS = {
@@ -1002,17 +1061,20 @@ const CASE_STUDY_HINTS = {
   csmd013: [
     'What happens to the loss when one data point is off by 100 vs. ten points each off by 10 — does RMSE treat that the same as MAE?',
     'RMSE squares the error before averaging — which metric is more sensitive to a few large outliers, and why would that matter for "deal size" where a few huge deals exist?',
-    'If the business genuinely cares about the typical error (not being wrecked by rare mega-deals), which metric matches that intent — and when would you actually WANT extra sensitivity to big misses?'
+    'If the business genuinely cares about the typical error (not being wrecked by rare mega-deals), which metric matches that intent — and when would you actually WANT extra sensitivity to big misses?',
+    "Beyond RMSE/MAE — if the business specifically needs a worst-case forecast (say, p90 deal size for capacity planning) rather than the average error, what loss function targets a percentile directly instead of the mean?"
   ],
   csmd014: [
     "In one sentence: what is the model doing when it 'overfits' — memorizing the training data vs. learning generalizable patterns?",
     'If training accuracy keeps climbing but validation accuracy flatlines or drops, what does that growing gap tell you?',
-    'Name the concrete comparison you would plot to catch this early, and describe what a healthy gap looks like versus an unhealthy one.'
+    'Name the concrete comparison you would plot to catch this early, and describe what a healthy gap looks like versus an unhealthy one.',
+    'Overfitting also shows up across a LEARNING curve as you add more training data — how would adding data change the gap, and how does regularization (L1/L2, dropout, early stopping) attack the same problem from a different angle?'
   ],
   csmd015: [
     'If missing a churner costs far more than a false alarm, would you rather optimize for catching more true churners or avoiding false flags?',
     'Precision and recall trade off against each other — which one do you protect, even at some cost to the other, given that asymmetry?',
-    'ROC-AUC is threshold-independent and can look great even under severe class imbalance — why might it mislead you here, and what would you check instead (e.g. PR-AUC, or recall at a fixed precision)?'
+    'ROC-AUC is threshold-independent and can look great even under severe class imbalance — why might it mislead you here, and what would you check instead (e.g. PR-AUC, or recall at a fixed precision)?',
+    "Beyond a single overall F1 — how would per-segment metrics (by customer tier, tenure) catch a model that looks great in aggregate but is quietly failing on your highest-value segment?"
   ],
   csmd016: [
     'Standard k-fold assumes each row is independent — what if your data actually has groups, like multiple rows per customer, or a time ordering?',
@@ -1032,12 +1094,43 @@ const CASE_STUDY_HINTS = {
   csmd019: [
     "With 0.1% positives, what happens to a model that just predicts 'not fraud' every time — and why does accuracy hide that failure completely?",
     'Which metrics actually reflect performance on the rare class (precision/recall on the positive class, PR-AUC) instead of being dominated by the 99.9% majority?',
-    'Once you have a good ranking model, how do you pick the decision threshold using the REAL cost matrix (cost of a missed fraud vs. cost of a false alarm) instead of the default 0.5?'
+    'Once you have a good ranking model, how do you pick the decision threshold using the REAL cost matrix (cost of a missed fraud vs. cost of a false alarm) instead of the default 0.5?',
+    "Beyond precision/recall/PR-AUC — how would you check the model's raw output probabilities are actually calibrated (a reliability diagram, Brier score) before you trust a fixed dollar-cost threshold built on top of them?"
   ],
   csmd020: [
     'If hyperparameter tuning has plateaued, is the bottleneck really the model — or could it be the FEATURES the model has to work with?',
     "Ensembling/stacking combines multiple models' errors — why does that sometimes buy accuracy that no single model's tuning ever could?",
     'Error analysis on misclassified segments tells you WHERE the model is failing — how would that finding point you toward the next specific lever (a new feature, more data for a segment, a specialized sub-model) rather than guessing?'
+  ],
+  csmd021: [
+    'Recall@10 only asks whether the relevant items appear anywhere in the top 10 — does it care whether the single best match lands at position 1 or position 10?',
+    'NDCG discounts a hit\'s value by its position (a log-based discount) — why does that matter more for a search box than for, say, a "you might also like" grid the user scans all at once?',
+    'If two systems score identically on Recall@10 but very differently on NDCG@10, what does that difference tell you about WHERE the relevant items are landing?',
+    'When would you actually prefer plain Recall@10 over NDCG@10 — think of a UI where all 10 results are equally visible with no strong first-result bias.'
+  ],
+  csmd022: [
+    "A model can have excellent ROC-AUC (great at ranking) while still being badly calibrated — what does 'calibrated' mean here, separate from ranking ability?",
+    'A reliability diagram bins predictions by confidence and plots them against the actual outcome rate — what would an overconfident model\'s diagram look like versus a well-calibrated one?',
+    'Brier score and Expected Calibration Error (ECE) both turn that diagram into a single number — why would you want a number on top of the plot for ongoing monitoring?',
+    'If it is overconfident, name a concrete fix (Platt scaling or isotonic regression) and explain in one sentence what each one actually does to the raw scores.'
+  ],
+  csmd023: [
+    "MAPE divides the error by the actual value — what happens to that ratio when a SKU's true demand is 2 units and you're off by 1?",
+    'RMSE and MAE both stay in raw units (units sold) — how does that make them hard to compare fairly between a SKU selling 5,000/week and one selling 5/week?',
+    'What would a normalized or weighted version of the metric look like — scaling each SKU\'s error by its own volume or revenue, instead of treating every SKU equally?',
+    'If leadership wants one number for a slide but you still need to catch small-SKU failures internally, would you report one metric twice (global + per-segment), or force one metric to do both jobs?'
+  ],
+  csmd024: [
+    'Micro-F1 pools every prediction together before scoring — in a 5-class problem where one class has 80% of the volume, whose performance does micro-F1 mostly end up reflecting?',
+    'Macro-F1 averages each class\'s F1 equally, regardless of size — what happens to macro-F1 if the model is great on the 4 common ticket types but terrible on the rarest one?',
+    'Weighted-F1 averages by class support (size) — how does it land somewhere between micro (dominated by big classes) and macro (treats every class equally)?',
+    'Design the exact case: a model that is 95% accurate overall but 0% recall on the rarest ticket type — which of the three F1 variants actually surfaces that failure, and which one hides it?'
+  ],
+  csmd025: [
+    'You cannot optimize a per-request ranking model directly on GMV, which only resolves after checkout — what shorter-horizon signal (click, add-to-cart, purchase likelihood) could serve as a proxy the model CAN train and be evaluated on?',
+    'A proxy metric can improve while the real north-star does not move — what guardrail metrics (session length, refund rate, seller diversity) would you gate on to catch that gap?',
+    'How would you actually validate that the proxy tracks GMV over time — a periodic offline correlation check between the proxy and realized GMV, or an online A/B test measuring both at once?',
+    'If the proxy and the north-star start to diverge months later (proxy still rising, GMV flat), what is your process for catching that drift before it becomes a quarter-ending surprise?'
   ]
 };
 let csSelectedQuestion = null;
@@ -1045,6 +1138,152 @@ let csHintIndex = 0;
 let csFilteredList = [];
 
 function caseStudyQuestions(){ return QUESTIONS.filter(q => q.round === CASE_STUDY_ROUND); }
+
+/* Every evaluation metric worth knowing for an Applied DS/MLE case study round — what it is, when it's
+   right, and when it's a trap. Deliberately broader than the 20 questions above so "every metric" is
+   covered as reference even where there isn't yet a dedicated practice question for it. */
+const METRICS_PLAYBOOK = [
+  { cat: 'Classification', items: [
+    { name: 'Accuracy', def: '% of predictions correct overall.', use: 'Balanced classes, all error types roughly equally costly.', avoid: 'Any real class imbalance — 99% accuracy on 1% fraud can mean the model just predicts "no fraud" every time.' },
+    { name: 'Precision', def: 'Of predicted positives, % actually positive.', use: 'False positives are expensive (spam filter blocking real mail, fraud freeze on a real customer).', avoid: "Reported alone — a model that predicts positive once, correctly, has 100% precision and is useless." },
+    { name: 'Recall (Sensitivity)', def: 'Of actual positives, % you caught.', use: 'Missing a positive is expensive (cancer screening, fraud, safety).', avoid: 'Reported alone — flagging everyone as positive gives 100% recall.' },
+    { name: 'F1 (macro / micro / weighted)', def: 'Harmonic mean of precision & recall; macro = unweighted per-class average, micro = globally pooled, weighted = averaged by class support.', use: 'One balanced number; macro when every class matters equally, weighted when it should reflect class frequency.', avoid: "When precision and recall's costs actually differ — report both separately instead of collapsing them." },
+    { name: 'ROC-AUC', def: 'Probability a random positive scores higher than a random negative, across all thresholds.', use: 'Roughly balanced classes, ranking quality matters more than one fixed threshold.', avoid: 'Severe imbalance — it stays deceptively high (dominated by easy true negatives) while PR-AUC crashes.' },
+    { name: 'PR-AUC', def: 'Area under the precision-recall curve.', use: 'Severe imbalance (fraud, rare disease, click prediction) — exactly where ROC-AUC can\'t be trusted.', avoid: 'Comparing across datasets with very different positive rates — the baseline PR-AUC shifts with prevalence.' },
+    { name: 'Log Loss (cross-entropy)', def: 'Heavily penalizes confident wrong predictions; rewards well-calibrated probabilities.', use: 'You need calibrated probabilities, not just correct rank order (risk scoring, pricing).', avoid: 'When only the final ranking/threshold decision matters, not the raw probability value.' },
+    { name: 'Brier Score', def: 'Mean squared error between predicted probability and the actual 0/1 outcome.', use: 'Calibration quality for probabilistic forecasts (weather, risk models).', avoid: 'Multi-class problems without adaptation — it\'s naturally a binary metric.' },
+    { name: 'Matthews Correlation Coefficient (MCC)', def: 'A single balanced score computed from the full confusion matrix, -1 to 1.', use: 'Imbalanced binary classification when you want one robust summary number.', avoid: 'Explaining to non-technical stakeholders — it isn\'t intuitive like precision/recall.' },
+    { name: "Cohen's Kappa", def: 'Agreement between prediction and truth, adjusted for chance agreement.', use: 'Comparing a model (or human labelers) against chance-level performance, especially with imbalanced labels.', avoid: 'As your primary optimization target — it\'s a diagnostic, not usually what you tune against.' },
+    { name: 'Confusion matrix / per-class breakdown', def: 'Raw counts of TP/FP/TN/FN, or per-class for multi-class.', use: 'Always, alongside any single-number metric — it shows WHERE the model is failing.', avoid: 'Never skip it just because you already have a summary metric.' },
+  ]},
+  { cat: 'Regression', items: [
+    { name: 'MAE', def: 'Mean absolute error — average magnitude of error, in the target\'s own units.', use: 'You want errors punished linearly and a metric that\'s robust to outliers.', avoid: 'When large errors are disproportionately costly and should be penalized harder than small ones.' },
+    { name: 'RMSE', def: 'Root mean squared error — penalizes large errors far more than small ones.', use: 'Large errors are disproportionately bad (a wildly wrong forecast is worse than 2x a small miss).', avoid: 'Data has extreme outliers that would dominate and distort the score.' },
+    { name: 'MAPE / sMAPE', def: 'Mean absolute percentage error (the symmetric variant fixes MAPE\'s blow-up near zero).', use: 'Stakeholders want "off by X%" instead of raw units, or you\'re comparing across differently-scaled series.', avoid: 'Target values near zero — MAPE explodes toward infinity there.' },
+    { name: 'R² / Adjusted R²', def: 'Fraction of variance explained; the adjusted version penalizes adding useless features.', use: 'Communicating overall model fit / explanatory power to stakeholders.', avoid: 'As the sole model-selection metric — a high R² can still hide systematically bad residuals.' },
+    { name: 'Huber / Quantile Loss', def: 'Huber blends MAE and MSE for outlier robustness; quantile loss targets a specific percentile (e.g. p90) instead of the mean.', use: 'Outlier-heavy data (Huber), or you need to forecast a percentile directly, like demand p90 for inventory (quantile).', avoid: 'When you truly need every large error penalized equally hard — plain RMSE is simpler and does that.' },
+  ]},
+  { cat: 'Ranking & Recommendation', items: [
+    { name: 'NDCG@k', def: 'Rewards relevant items ranked near the top, discounted by position.', use: 'Search/recommendation where the ORDER of the top-k results matters, not just whether relevant items appear.', avoid: 'When you only care whether a relevant item is present at all — use Recall@k instead.' },
+    { name: 'MAP@k', def: 'Mean average precision across users/queries, at cutoff k.', use: 'Multiple relevant items per query and you want to reward getting all of them ranked high.', avoid: 'Single-relevant-item scenarios — MRR is simpler and more direct there.' },
+    { name: 'MRR', def: 'Mean reciprocal rank — 1 / (rank of the first relevant result), averaged.', use: 'There is exactly one "right answer" and you care how fast the user finds it (search, autocomplete).', avoid: 'Multiple relevant items where the rank of ALL of them matters — use NDCG/MAP instead.' },
+    { name: 'Precision@k / Recall@k / Hit Rate@k', def: 'Precision/recall/whether-any-hit, restricted to the top k results actually shown.', use: 'You only ever show k results (a homepage carousel, top-10 search) — nothing below k matters.', avoid: 'Evaluating a full ranking\'s quality beyond position k.' },
+  ]},
+  { cat: 'Calibration & Reliability', items: [
+    { name: 'Reliability diagram', def: 'Plots predicted probability vs. observed frequency in bins.', use: 'Visually diagnosing whether "70% confident" predictions are actually right ~70% of the time.', avoid: 'As a single number to report to leadership — pair it with ECE or Brier score.' },
+    { name: 'Expected Calibration Error (ECE)', def: 'Weighted average gap between predicted confidence and actual accuracy across bins.', use: 'Any decision that acts directly on the probability, not just the class label (risk scoring, auto-approval thresholds).', avoid: 'Tiny datasets — the bins get noisy and the estimate becomes unstable.' },
+  ]},
+  { cat: 'Business / Product Tie-In', items: [
+    { name: 'North-star metric', def: 'The single business outcome the model ultimately exists to move (revenue, retention, fraud $ saved).', use: 'Always define this FIRST, before any ML metric — it\'s what you\'re actually optimizing for.', avoid: "Confusing it with the ML metric itself — a model can win on F1 and still not move the north-star." },
+    { name: 'Guardrail metrics', def: 'Metrics that must NOT regress while you optimize the north-star (latency, false-positive rate, fairness gap).', use: 'Any production rollout — define these before shipping, not after an incident.', avoid: 'Skipping them because the north-star improved — that\'s exactly when a guardrail silently breaks.' },
+  ]},
+];
+function renderMetricsPlaybook(){
+  return METRICS_PLAYBOOK.map(g => `
+    <div class="rubricGroup">
+      <b>${g.cat}</b>
+      ${g.items.map(m => `
+        <div class="metricRow">
+          <div class="metricName">${m.name}</div>
+          <div class="metricDef">${m.def}</div>
+          <div class="metricUse">✅ <b>Use when:</b> ${m.use}</div>
+          <div class="metricAvoid">🚫 <b>Avoid when:</b> ${m.avoid}</div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+document.getElementById('csMetricsBtn').addEventListener('click', () => {
+  const box = document.getElementById('csMetricsBox');
+  const btn = document.getElementById('csMetricsBtn');
+  if (!box.hidden){ box.hidden = true; btn.textContent = '📐 Metrics Playbook — every metric, one place'; return; }
+  box.innerHTML = '<b>📐 Metrics Playbook</b>'
+    + '<div class="hint" style="margin:4px 0 10px;">Every evaluation metric worth knowing for an Applied DS/MLE interview — what it is, when it\'s right, when it\'s a trap.</div>'
+    + renderMetricsPlaybook();
+  box.hidden = false;
+  btn.textContent = '📐 Hide metrics playbook';
+});
+
+/* Self-check rubric for the "submit your solution" step — a free, instant checklist covering
+   what a senior/staff reviewer actually checks, independent of any AI call. */
+const CODE_REVIEW_RUBRIC = [
+  { cat: 'Clean Code & Readability', items: [
+    'Names reveal intent (no x, tmp, data2) — a stranger could follow the flow without asking you.',
+    'Functions do one thing; if you need "and" to describe one, split it.',
+    'Comments explain WHY (a trade-off, a non-obvious constraint), not WHAT the next line already says.',
+  ]},
+  { cat: 'Correctness & Edge Cases', items: [
+    'Nulls/NaNs, empty inputs, and the class-imbalance/outlier case are handled, not assumed away.',
+    'Off-by-one and boundary conditions (first/last batch, k=0, empty split) are explicitly considered.',
+  ]},
+  { cat: 'SOLID & Architecture', items: [
+    'Each class/module has one reason to change (SRP) — no god class doing loading + training + serving.',
+    'A new feature transform or model can be added without editing existing, tested code (OCP).',
+    'Code depends on an interface/abstraction (a FeatureStore, a Model), not a concrete vendor class (DIP).',
+  ]},
+  { cat: 'Evaluation & Metrics Rigor', items: [
+    'The metric chosen matches the real cost of errors, not just what\'s easiest to compute.',
+    'A baseline (majority class, last value, simple heuristic) is reported alongside the model\'s score.',
+    'The validation strategy avoids leakage (correct split by time/entity, not random rows).',
+  ]},
+  { cat: 'MLOps & Reproducibility', items: [
+    'Data, code, and model versions are all pinned — someone else could reproduce this run exactly.',
+    'The pipeline is one command away from re-running end to end, not a sequence of manual notebook cells.',
+  ]},
+  { cat: 'Production Readiness', items: [
+    'Errors fail loudly with a clear message, not silently returning a default.',
+    'Config (thresholds, paths, hyperparameters) is externalized, not hardcoded magic numbers.',
+    'There is a monitoring/rollback story, even if just noted as a comment.',
+  ]},
+];
+function getSavedProviderConfig(){
+  const provider = localStorage.getItem('vit_provider') || 'groq';
+  const p = PROVIDERS[provider];
+  const fallbackModel = p && p.models && p.models[0] ? p.models[0].id : '';
+  const model = localStorage.getItem('vit_model_' + provider) || fallbackModel;
+  const apiKey = (localStorage.getItem('vit_key_' + provider) || '').trim();
+  return { provider, model, apiKey };
+}
+document.getElementById('csSelfCheckBtn').addEventListener('click', () => {
+  if (!csSelectedQuestion){ alert('Pick a question first.'); return; }
+  const box = document.getElementById('csSelfCheckBox');
+  if (!box.hidden){ box.hidden = true; return; }
+  box.innerHTML = '<b>✅ Self-check rubric</b>'
+    + '<div class="hint" style="margin:4px 0 8px;">Grade your own submission against what a senior reviewer would actually check — before or instead of an AI review.</div>'
+    + CODE_REVIEW_RUBRIC.map(g => `<div class="rubricGroup"><b>${g.cat}</b><ul>${g.items.map(i => `<li>${i}</li>`).join('')}</ul></div>`).join('');
+  box.hidden = false;
+});
+document.getElementById('csAiReviewBtn').addEventListener('click', async () => {
+  if (!csSelectedQuestion){ alert('Pick a question first.'); return; }
+  const text = document.getElementById('csSubmissionText').value.trim();
+  if (!text){ alert('Paste your code or written solution first.'); return; }
+  const { provider, model, apiKey } = getSavedProviderConfig();
+  if (!apiKey){
+    alert('No API key saved yet. Open the AI Feedback tab once, pick a free provider (Groq or Gemini), and paste a free key there — this button reuses it automatically.');
+    return;
+  }
+  const btn = document.getElementById('csAiReviewBtn');
+  const resultBox = document.getElementById('csReviewResult');
+  btn.disabled = true; btn.textContent = 'Reviewing…';
+  resultBox.hidden = false;
+  resultBox.textContent = 'Contacting the model…';
+  const stepLbl = stepLabel(stepOf(csSelectedQuestion.id));
+  const systemPrompt = `You are a senior/staff-level engineer at a top tech company (Adobe/MAANG bar) doing a professional code/solution review `
+    + `for a case-study answer to the "${stepLbl}" step of an applied ML system design interview. Review the candidate's submission below with `
+    + `rigor and respect — direct, specific, no fluff. Respond in exactly these sections:\n`
+    + `1) ISSUES FOUND: a numbered list, each tagged [BLOCKER]/[MAJOR]/[MINOR], naming the specific problem.\n`
+    + `2) CLEAN CODE & DESIGN: naming, structure, and any SOLID principle violated (name which one) if this is code; readability/structure if it's prose.\n`
+    + `3) WHAT'S MISSING: concepts, edge cases, or metrics a top Applied Data Scientist would have covered here that this submission didn't.\n`
+    + `4) NEXT STEPS: a short prioritized to-do list to fix it, most important first.\n`
+    + `Keep the whole response under 320 words. Be honest and specific — do not pad with generic praise.`;
+  try{
+    const out = await callLLM(provider, model, apiKey, systemPrompt, [{ role:'user', content:`QUESTION: ${csSelectedQuestion.q}\n\nCANDIDATE'S SUBMISSION:\n${text}` }]);
+    resultBox.textContent = out;
+  } catch(err){
+    console.error(err);
+    resultBox.textContent = friendlyLLMError(err);
+  } finally {
+    btn.disabled = false; btn.textContent = '🤖 Get AI review';
+  }
+});
 
 function renderCaseStudyFramework(){
   const el = document.getElementById('csFramework');
@@ -1141,14 +1380,24 @@ function selectCaseStudyQuestion(q){
   csSelectedQuestion = q;
   csHintIndex = 0;
   document.getElementById('csDetailCard').hidden = false;
+  document.getElementById('csSubmitCard').hidden = false;
   const { html } = highlightJargon(q.q);
   document.getElementById('csCurrent').innerHTML = html;
+  const concepts = CASE_STUDY_CONCEPTS[q.id] || [];
+  document.getElementById('csConcepts').innerHTML = concepts.map(c => `<span class="chip">${c}</span>`).join('');
   const hintBox = document.getElementById('csHintBox');
   const outlineBox = document.getElementById('csOutlineBox');
   hintBox.hidden = true; hintBox.innerHTML = '';
   outlineBox.hidden = true; outlineBox.innerHTML = '';
   document.getElementById('csHintBtn').textContent = '💡 Get a hint';
   document.getElementById('csOutlineBtn').textContent = '🧭 Show full framework';
+  document.getElementById('csSubmissionText').value = '';
+  document.getElementById('csSelfCheckBox').hidden = true;
+  document.getElementById('csSelfCheckBox').innerHTML = '';
+  document.getElementById('csReviewResult').hidden = true;
+  document.getElementById('csReviewResult').textContent = '';
+  document.getElementById('csAiReviewBtn').disabled = false;
+  document.getElementById('csAiReviewBtn').textContent = '🤖 Get AI review';
   updateCsPos();
   updateCsBookmarkBtn();
   renderCaseStudyTable();
