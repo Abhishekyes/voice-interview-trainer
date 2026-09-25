@@ -109,6 +109,20 @@
   .legend{font-size:0.76em; color:var(--muted); margin:6px 0 10px;}
   .legend span{margin-right:10px;}
 
+  /* ===== Search / nav / shuffle / bookmarks / outline ===== */
+  .qtoolbar{display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;}
+  .qtoolbar input[type=text]{flex:2; min-width:180px;}
+  .bmToggle{display:flex; align-items:center; gap:6px; font-size:0.82em; color:var(--muted); white-space:nowrap;}
+  .bmToggle input{width:auto;}
+  .qitem{position:relative;}
+  .qitem .bm{color:var(--warn); margin-left:6px;}
+  .navRow{display:flex; gap:10px; align-items:center; margin:4px 0 10px; flex-wrap:wrap;}
+  .navRow .qpos{color:var(--muted); font-size:0.82em; margin-left:auto;}
+  .btn-toggle.active{background:linear-gradient(90deg,var(--accent3),var(--accent1)); color:#0b0e17;}
+  .outlineBox{background:#0c1120; border:1px solid var(--border); border-radius:10px; padding:14px; margin-top:10px; font-size:0.87em; line-height:1.6;}
+  .outlineBox ol{margin:6px 0 0; padding-left:20px;}
+  .outlineBox li{margin-bottom:5px;}
+
   /* ===== Loading overlay & auth bar ===== */
   #loadingOverlay{
     position:fixed; inset:0; background:var(--bg1); display:flex; align-items:center; justify-content:center;
@@ -159,11 +173,21 @@
           <select id="levelFilter"></select>
         </div>
       </div>
+      <div class="qtoolbar">
+        <input type="text" id="qSearch" placeholder="🔍 Search questions by keyword…"/>
+        <label class="bmToggle"><input type="checkbox" id="bmOnlyFilter"/> 🔖 Bookmarked only</label>
+        <button class="btn-secondary" id="shuffleBtn" type="button">🎲 Surprise me</button>
+      </div>
       <div class="legend" id="levelLegend"></div>
       <div class="qlist" id="qlist"></div>
     </div>
 
     <div class="card">
+      <div class="navRow">
+        <button class="btn-ghost" id="prevQBtn" type="button">◀ Prev</button>
+        <button class="btn-ghost" id="nextQBtn" type="button">Next ▶</button>
+        <span class="qpos" id="qPos"></span>
+      </div>
       <div class="qcurrent" id="qcurrent">Pick a question above to begin.</div>
       <div class="btn-row">
         <button class="btn-secondary" id="readAloudBtn">🔊 Read question aloud</button>
@@ -171,10 +195,13 @@
         <button class="btn-secondary" id="stopRecordBtn" disabled>■ Stop recording</button>
         <button class="btn-secondary" id="langCheckBtn">🧪 Quick language check</button>
         <button class="btn-secondary" id="markPracticedBtn">✅ Mark as practiced</button>
+        <button class="btn-secondary btn-toggle" id="bookmarkBtn">🔖 Bookmark</button>
+        <button class="btn-secondary" id="outlineBtn">💡 Show answer outline</button>
         <button class="btn-secondary" id="downloadBtn">⬇ Download transcript log</button>
       </div>
       <div id="freeAnswerTranscript"><span class="hint">Your transcribed answer will appear here as you speak.</span></div>
       <div class="checkResults" id="checkResults" hidden></div>
+      <div class="outlineBox" id="outlineBox" hidden></div>
     </div>
 
     <div class="card" id="jargonCard">
@@ -405,30 +432,36 @@ function levelColorStyle(n){
 }
 
 /* ======================= PROGRESS (per-user Firestore document) ======================= */
-let progress = { practiced:{}, seenTerms:{} };
+let progress = { practiced:{}, seenTerms:{}, flagged:{} };
 let saveProgressTimer = null;
 
 async function loadProgressFromCloud(){
-  if (!currentUser){ progress = { practiced:{}, seenTerms:{} }; return; }
+  if (!currentUser){ progress = { practiced:{}, seenTerms:{}, flagged:{} }; return; }
   try {
     const snap = await getDoc(doc(db, 'users', currentUser.uid));
     const d = snap.exists() ? snap.data() : {};
-    progress = { practiced: d.practiced || {}, seenTerms: d.seenTerms || {} };
+    progress = { practiced: d.practiced || {}, seenTerms: d.seenTerms || {}, flagged: d.flagged || {} };
   } catch(e){
     console.error('Failed to load progress from Firestore', e);
-    progress = progress || { practiced:{}, seenTerms:{} };
+    progress = progress || { practiced:{}, seenTerms:{}, flagged:{} };
   }
 }
 function saveProgress(){
   if (!currentUser) return;
   clearTimeout(saveProgressTimer);
   saveProgressTimer = setTimeout(() => {
-    setDoc(doc(db, 'users', currentUser.uid), { practiced: progress.practiced, seenTerms: progress.seenTerms, updatedAt: Date.now() }, { merge: true })
+    setDoc(doc(db, 'users', currentUser.uid), { practiced: progress.practiced, seenTerms: progress.seenTerms, flagged: progress.flagged, updatedAt: Date.now() }, { merge: true })
       .catch(e => console.error('Failed to save progress to Firestore', e));
   }, 350);
 }
 function markPracticed(qid){ progress.practiced[qid] = Date.now(); saveProgress(); if (document.getElementById('panel-progress').classList.contains('active')) renderProgressTab(); }
 function markTermsSeen(terms){ let changed=false; terms.forEach(t => { if(!progress.seenTerms[t]){ progress.seenTerms[t]=true; changed=true; } }); if(changed) saveProgress(); }
+function toggleFlag(qid){
+  if (progress.flagged[qid]) delete progress.flagged[qid];
+  else progress.flagged[qid] = Date.now();
+  saveProgress();
+  if (document.getElementById('panel-progress').classList.contains('active')) renderProgressTab();
+}
 
 /* ======================= AUTH ======================= */
 let currentUser = null;
@@ -514,11 +547,13 @@ function renderProgressTab(){
   const practicedCount = QUESTIONS.filter(q => practicedIds.has(q.id)).length;
   const totalTerms = Object.keys(GLOSSARY).length;
   const seenTermCount = Object.keys(progress.seenTerms).filter(t => GLOSSARY[t] !== undefined).length;
+  const bookmarkedCount = Object.keys(progress.flagged || {}).length;
 
   document.getElementById('progressStats').innerHTML = `
     <div class="statTile"><div class="n">${practicedCount}/${totalQ}</div><div class="l">questions practiced</div></div>
     <div class="statTile"><div class="n">${totalQ ? Math.round(practicedCount/totalQ*100) : 0}%</div><div class="l">overall coverage</div></div>
     <div class="statTile"><div class="n">${seenTermCount}/${totalTerms}</div><div class="l">vocabulary terms seen</div></div>
+    <div class="statTile"><div class="n">${bookmarkedCount}</div><div class="l">🔖 bookmarked</div></div>
   `;
 
   const bars = ROUNDS.map(r => {
@@ -541,7 +576,7 @@ function renderProgressTab(){
 }
 document.getElementById('resetProgressBtn').addEventListener('click', () => {
   if (!confirm('Reset all local practice progress? This cannot be undone.')) return;
-  progress = { practiced:{}, seenTerms:{} };
+  progress = { practiced:{}, seenTerms:{}, flagged:{} };
   saveProgress();
   renderProgressTab();
 });
@@ -554,6 +589,8 @@ let finalTranscript = '';
 
 const roundFilter = document.getElementById('roundFilter');
 const levelFilter = document.getElementById('levelFilter');
+const qSearchInput = document.getElementById('qSearch');
+const bmOnlyFilter = document.getElementById('bmOnlyFilter');
 function populateRoundSelect(sel, includeAll){
   if (includeAll){ const o = document.createElement('option'); o.value=''; o.textContent='All domains'; sel.appendChild(o); }
   ROUNDS.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; sel.appendChild(o); });
@@ -566,22 +603,60 @@ populateRoundSelect(roundFilter, true);
 populateLevelSelect(levelFilter, true);
 document.getElementById('levelLegend').innerHTML = LEVELS.map(l => `<span><span class="lvl" style="background:${levelColorStyle(l.n)}">L${l.n}</span>${l.label}</span>`).join('');
 
+let currentFilteredList = [];
+
 function renderQList(){
   const round = roundFilter.value;
   const level = parseInt(levelFilter.value, 10) || 0;
+  const search = ((qSearchInput && qSearchInput.value) || '').trim().toLowerCase();
+  const bmOnly = !!(bmOnlyFilter && bmOnlyFilter.checked);
   const list = document.getElementById('qlist');
   list.innerHTML = '';
-  QUESTIONS.filter(q => (!round || q.round === round) && (!level || q.level === level)).forEach((q) => {
+  currentFilteredList = QUESTIONS.filter(q =>
+    (!round || q.round === round) &&
+    (!level || q.level === level) &&
+    (!search || q.q.toLowerCase().includes(search)) &&
+    (!bmOnly || !!progress.flagged[q.id])
+  );
+  if (!currentFilteredList.length){
+    list.innerHTML = '<div class="qitem hint" style="cursor:default;">No questions match these filters.</div>';
+  }
+  currentFilteredList.forEach((q) => {
     const div = document.createElement('div');
     div.className = 'qitem';
-    div.innerHTML = `<span class="lvl" style="background:${levelColorStyle(q.level)}">L${q.level}</span>${q.q}<div class="meta">${q.round} · ${levelInfo(q.level).label}</div>`;
+    div.dataset.qid = q.id;
+    const bm = progress.flagged[q.id] ? '<span class="bm">🔖</span>' : '';
+    div.innerHTML = `<span class="lvl" style="background:${levelColorStyle(q.level)}">L${q.level}</span>${q.q}${bm}<div class="meta">${q.round} · ${levelInfo(q.level).label}</div>`;
     div.addEventListener('click', () => selectQuestion(q, div));
     list.appendChild(div);
   });
+  if (selectedQuestion){
+    const selEl = list.querySelector(`.qitem[data-qid="${CSS.escape(selectedQuestion.id)}"]`);
+    if (selEl) selEl.classList.add('selected');
+  }
+  updateQPos();
 }
 roundFilter.addEventListener('change', renderQList);
 levelFilter.addEventListener('change', renderQList);
+if (qSearchInput) qSearchInput.addEventListener('input', () => renderQList());
+if (bmOnlyFilter) bmOnlyFilter.addEventListener('change', () => renderQList());
 renderQList();
+
+function updateQPos(){
+  const posEl = document.getElementById('qPos');
+  if (!posEl) return;
+  if (!selectedQuestion || !currentFilteredList.length){ posEl.textContent = ''; return; }
+  const idx = currentFilteredList.findIndex(q => q.id === selectedQuestion.id);
+  posEl.textContent = idx === -1 ? `${currentFilteredList.length} in list` : `${idx + 1} of ${currentFilteredList.length}`;
+}
+
+function updateBookmarkBtn(){
+  const btn = document.getElementById('bookmarkBtn');
+  if (!btn || !selectedQuestion) return;
+  const isFlagged = !!progress.flagged[selectedQuestion.id];
+  btn.textContent = isFlagged ? '🔖 Bookmarked' : '🔖 Bookmark';
+  btn.classList.toggle('active', isFlagged);
+}
 
 function escapeRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function wordBoundaryRegex(s, flags){
@@ -605,6 +680,7 @@ function highlightJargon(text){
 function selectQuestion(q, el){
   selectedQuestion = q;
   document.querySelectorAll('.qitem').forEach(e => e.classList.remove('selected'));
+  if (!el) el = document.querySelector(`.qitem[data-qid="${CSS.escape(q.id)}"]`);
   if (el) el.classList.add('selected');
   const { html, found } = highlightJargon(q.q);
   document.getElementById('qcurrent').innerHTML = html;
@@ -620,7 +696,152 @@ function selectQuestion(q, el){
   finalTranscript = '';
   document.getElementById('freeAnswerTranscript').innerHTML = '<span class="hint">Your transcribed answer will appear here as you speak.</span>';
   document.getElementById('checkResults').hidden = true;
+  const outlineBox = document.getElementById('outlineBox');
+  if (outlineBox){ outlineBox.hidden = true; outlineBox.innerHTML = ''; }
+  const outlineBtn = document.getElementById('outlineBtn');
+  if (outlineBtn) outlineBtn.textContent = '💡 Show answer outline';
+  updateQPos();
+  updateBookmarkBtn();
 }
+
+function goToOffset(offset){
+  if (!currentFilteredList.length) return;
+  let idx = selectedQuestion ? currentFilteredList.findIndex(q => q.id === selectedQuestion.id) : -1;
+  if (idx === -1) idx = offset > 0 ? -1 : 0;
+  idx = (idx + offset + currentFilteredList.length) % currentFilteredList.length;
+  const q = currentFilteredList[idx];
+  selectQuestion(q);
+  const el = document.querySelector(`.qitem[data-qid="${CSS.escape(q.id)}"]`);
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+}
+document.getElementById('prevQBtn').addEventListener('click', () => goToOffset(-1));
+document.getElementById('nextQBtn').addEventListener('click', () => goToOffset(1));
+
+document.getElementById('shuffleBtn').addEventListener('click', () => {
+  if (!currentFilteredList.length){ alert('No questions match the current filters.'); return; }
+  const unpracticed = currentFilteredList.filter(q => !progress.practiced[q.id]);
+  const pool = unpracticed.length ? unpracticed : currentFilteredList;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  selectQuestion(pick);
+  const el = document.querySelector(`.qitem[data-qid="${CSS.escape(pick.id)}"]`);
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+});
+
+document.getElementById('bookmarkBtn').addEventListener('click', () => {
+  if (!selectedQuestion){ alert('Pick a question first.'); return; }
+  toggleFlag(selectedQuestion.id);
+  updateBookmarkBtn();
+  renderQList();
+});
+
+/* ======================= MODEL-ANSWER OUTLINES (per domain — a structural guide, not the answer) ======================= */
+const ROUND_OUTLINES = {
+  'Python Theory & Internals': [
+    "State the precise behavior or definition first — don't hand-wave.",
+    'Explain the underlying mechanism (GIL, memory model, bytecode, etc.) in your own words.',
+    'Give a minimal code example that demonstrates it.',
+    'Call out a common pitfall or gotcha related to it.',
+    'Contrast it with a related concept people often confuse it with.'
+  ],
+  'Statistics & ML Theory': [
+    'Define the concept or metric precisely, including its assumptions.',
+    'Explain why it matters — what problem it actually solves.',
+    'Walk through the intuition or math at a level matching the seniority asked.',
+    'Give a concrete example or worked scenario.',
+    'Call out limitations, failure modes, or when you would NOT use it.'
+  ],
+  'SQL & Data Engineering': [
+    'Clarify the schema, grain of the data, and the exact question being asked.',
+    'State your query approach step by step (joins, aggregations, windows) before writing SQL.',
+    'Call out performance considerations (indexes, partitioning, data skew).',
+    'Handle edge cases explicitly (nulls, duplicates, late-arriving data).',
+    'Explain how you would validate or sanity-check the result.'
+  ],
+  'Applied Data Science': [
+    'Restate the business problem and the metric that defines success.',
+    'Outline your EDA and data-quality checks first.',
+    'Describe the modeling approach and why it fits the problem.',
+    'Cover your evaluation strategy (metrics, validation split, baseline comparison).',
+    'Discuss how you would productionize or act on the result.'
+  ],
+  'Applied AI & LLM Engineering': [
+    'Frame the use case and constraints (latency, cost, accuracy, safety).',
+    'Describe the architecture — retrieval, prompting, fine-tuning, or agents, whichever applies.',
+    'Discuss evaluation: offline evals, human eval, and guardrails.',
+    'Address failure modes (hallucination, prompt injection, drift) and mitigations.',
+    'Note cost and latency trade-offs at scale.'
+  ],
+  'MLOps & Production ML': [
+    'Describe the pipeline stages: data → train → validate → deploy → monitor.',
+    'Call out versioning — data, model, and code — and reproducibility.',
+    'Explain the deployment strategy (batch vs online, canary, shadow).',
+    'Cover monitoring (drift, performance, alerts) and the rollback plan.',
+    'Tie it back to team and process concerns (CI/CD, testing).'
+  ],
+  'System Design': [
+    'Clarify requirements and scale first (QPS, data volume, latency SLOs).',
+    'Sketch a high-level architecture before diving into any one component.',
+    'Deep-dive the 1–2 hardest components (storage choice, partitioning, caching).',
+    'Discuss trade-offs explicitly (consistency vs availability, cost vs latency).',
+    'Address failure handling and how the design changes at 10x scale.'
+  ],
+  'Cloud/AWS': [
+    "Name the specific service(s) you'd use and why they fit this use case.",
+    'Explain the architecture and data flow between services.',
+    'Cover cost, security (IAM), and reliability considerations.',
+    'Mention a limit, quota, or gotcha of the service you named.',
+    "Note an alternative approach and why you didn't choose it."
+  ],
+  'Coding & Algorithms': [
+    'Clarify constraints and edge cases before writing any code.',
+    'State your approach and its time/space complexity up front.',
+    'Walk through the logic or pseudocode before full implementation.',
+    'Trace through a concrete example, including edge cases.',
+    'Discuss how you would optimize further or test it.'
+  ],
+  'SRE/Reliability/Security': [
+    'Define the reliability or security goal (SLO, threat model).',
+    'Describe detection — monitoring, alerting, logging.',
+    'Describe response — runbook, escalation, mitigation steps.',
+    'Cover prevention — design changes, hardening, automation.',
+    'Discuss the postmortem / blameless-learning process.'
+  ],
+  'Behavioral & Leadership': [
+    'Use STAR: Situation, Task, Action, Result.',
+    'Be specific — real numbers, real stakeholders, a real timeline.',
+    'Own your part explicitly ("I did X"), not just "we did X".',
+    'State the measurable outcome or impact.',
+    "Reflect on what you'd do differently or what you learned."
+  ],
+  'Case Studies & MLOps Deployment': [
+    'Frame the problem — clarify scope and the success metric first.',
+    'Walk through EDA and metric/feature selection.',
+    'Describe the modeling approach and its trade-offs.',
+    'Cover shipping it: data/model versioning (DVC), experiment tracking (MLflow), packaging and serving, CI/CD.',
+    'Cover operating it: monitoring, rollback, and how the codebase applies SOLID principles.',
+    'State explicitly what you would deliberately NOT model or scope out.'
+  ]
+};
+const DEFAULT_OUTLINE = [
+  'Clarify the question and any assumptions before answering.',
+  'State your approach before diving into details.',
+  'Give a concrete example or walk-through.',
+  'Note trade-offs, limitations, or edge cases.',
+  'Summarize with the key takeaway.'
+];
+
+document.getElementById('outlineBtn').addEventListener('click', () => {
+  if (!selectedQuestion){ alert('Pick a question first.'); return; }
+  const box = document.getElementById('outlineBox');
+  const btn = document.getElementById('outlineBtn');
+  if (!box.hidden){ box.hidden = true; btn.textContent = '💡 Show answer outline'; return; }
+  const outline = ROUND_OUTLINES[selectedQuestion.round] || DEFAULT_OUTLINE;
+  box.innerHTML = '<b>💡 What a strong answer typically covers</b>'
+    + '<div class="hint" style="margin:4px 0 8px;">A structural guide, not the answer itself — use it to check you hit the key beats.</div>'
+    + '<ol>' + outline.map(o => `<li>${o}</li>`).join('') + '</ol>';
+  box.hidden = false;
+  btn.textContent = '💡 Hide answer outline';
+});
 
 document.getElementById('readAloudBtn').addEventListener('click', () => {
   if (!selectedQuestion){ alert('Pick a question first.'); return; }
