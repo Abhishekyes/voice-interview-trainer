@@ -266,6 +266,9 @@
         <select id="csStepFilter">
           <option value="">All 8 steps</option>
         </select>
+        <select id="csCompanyFilter">
+          <option value="">All companies</option>
+        </select>
         <label class="bmToggle"><input type="checkbox" id="csBmOnlyFilter"/> 🔖 Bookmarked only</label>
       </div>
       <div class="csTableWrap">
@@ -848,6 +851,13 @@ const ROUND_OUTLINES = {
     'Give a concrete example or worked scenario.',
     'Call out limitations, failure modes, or when you would NOT use it.'
   ],
+  'Experimentation & Causal Inference': [
+    'Name the confound or reason a simple before/after or correlational comparison would mislead here.',
+    'State which causal-inference method fits (diff-in-diff, geo-randomization, propensity matching, synthetic control, IV) and why that one.',
+    "State the method's core identifying assumption explicitly (parallel trends, instrument validity, SUTVA, etc.) — not just its name.",
+    'Explain how you would check whether that assumption plausibly holds before trusting the result.',
+    'Call out what would make you distrust the result entirely and fall back to a randomized experiment instead.'
+  ],
   'SQL & Data Engineering': [
     'Clarify the schema, grain of the data, and the exact question being asked.',
     'State your query approach step by step (joins, aggregations, windows) before writing SQL.',
@@ -974,10 +984,22 @@ const STEP_OF_QUESTION = {
   csmd001: 'versioning', csmd002: 'versioning', csmd006: 'versioning',
   csmd009: 'deployment', csmd010: 'deployment',
   csmd003: 'solid', csmd005: 'solid', csmd008: 'solid', csmd011: 'solid',
-  csmd012: 'monitoring'
+  csmd012: 'monitoring',
+  csmd026: 'framing', csmd027: 'metrics',
+  csmd028: 'metrics', csmd029: 'monitoring',
+  csmd030: 'metrics', csmd031: 'framing'
 };
 function stepOf(qid){ return STEP_OF_QUESTION[qid] || null; }
 function stepLabel(key){ const s = CASE_STUDY_STEPS.find(x => x.key === key); return s ? s.label : 'Other'; }
+
+/* Company tag for the company-flavored case study questions (Adobe / Google / Microsoft loops). */
+const CASE_STUDY_COMPANIES = ['Adobe', 'Google', 'Microsoft'];
+const COMPANY_OF_QUESTION = {
+  csmd026: 'Adobe', csmd027: 'Adobe',
+  csmd028: 'Google', csmd029: 'Google',
+  csmd030: 'Microsoft', csmd031: 'Microsoft'
+};
+function companyOf(qid){ return COMPANY_OF_QUESTION[qid] || null; }
 
 /* Concept/tool tags per question — the specific techniques a strong answer should name, shown as chips. */
 const CASE_STUDY_CONCEPTS = {
@@ -1006,6 +1028,12 @@ const CASE_STUDY_CONCEPTS = {
   csmd023: ['MAPE pitfalls', 'RMSE vs MAE', 'Per-segment normalization', 'Weighted aggregation'],
   csmd024: ['Macro F1', 'Micro F1', 'Weighted F1', 'Class support imbalance'],
   csmd025: ['Proxy metrics', 'North-star validation', 'Guardrail metrics', 'Online/offline correlation'],
+  csmd026: ['Price elasticity', 'Geo-randomization', 'Guardrail metrics (churn, downgrade rate)', 'Segment-level effects'],
+  csmd027: ['Selection bias', 'Propensity score matching', 'Instrumental variables', 'Retention curves'],
+  csmd028: ['Advertiser ROI', 'Auction dynamics', 'Guardrail metrics', 'Two-sided marketplace'],
+  csmd029: ['Data drift vs concept drift', 'Holdback group', 'Segment-level regression analysis', 'Counterfactual evaluation'],
+  csmd030: ['Confounding by user sophistication', 'Adoption funnel', 'Cohort analysis', 'Matched comparison group'],
+  csmd031: ['Network effects / interference bias', 'SUTVA violation', 'Cluster randomization', 'Two-sided marketplace'],
 };
 
 /* Plain-language breakdown per question: what's actually being asked (so the question itself is never the
@@ -1036,6 +1064,12 @@ const PROBLEM_BREAKDOWN = {
   csmd023: { plain: "It's asking what breaks when you use one metric across SKUs selling wildly different volumes.", depth: "Name the specific failure (MAPE exploding near zero) and propose a fix, not just a metric name." },
   csmd024: { plain: "It wants a concrete scenario where the three F1 variants would actually disagree — not just their definitions.", depth: "Design the exact failure case (great overall, 0% recall on the rarest class) and say which F1 variant catches it." },
   csmd025: { plain: "It's the classic 'can't optimize what you actually care about' problem — walk the full chain: proxy, guardrails, validation.", depth: "Staff-level means naming how you'd catch the proxy silently diverging from GMV months later, not just picking one." },
+  csmd026: { plain: "It's combining a business pricing call with a rigorous test design — not just 'run an A/B test on the price'.", depth: "Name explicitly why a naive user-level A/B test on price is often unfair/visible across users on the same plan, and why geo- or cohort-level randomization is usually the real answer." },
+  csmd027: { plain: "The trap is comparing 'used Firefly' vs. 'didn't' directly — that comparison is confounded by exactly the kind of user who opts in to a new AI feature.", depth: "Name the self-selection confound explicitly, then propose a specific correction (propensity matching, an instrument, or a staged/randomized rollout) rather than 'control for confounders' in the abstract." },
+  csmd028: { plain: "It's asking you to balance two audiences — the advertiser paying for the click and the user seeing the ad — not just optimize CTR.", depth: "A strong answer separates user-side quality signals from advertiser-side ROI signals, and names at least one guardrail that would catch the ranking change 'winning' by quietly degrading ad relevance." },
+  csmd029: { plain: "It wants the full detection-to-root-cause chain for a metric regression tied to a specific ship date, not just 'check the dashboard'.", depth: "Senior-level reaches for a held-back control population to confirm the update actually caused it, before segmenting by device/content/region to localize the cause." },
+  csmd030: { plain: "The confound is baked into the setup — power users adopt new features early AND would have been more engaged anyway.", depth: "Name the confound explicitly and propose a matched-cohort or staged-rollout comparison instead of a naive adopters-vs-non-adopters split." },
+  csmd031: { plain: "This is a classic SUTVA violation — one seller's treatment can leak into another seller's outcome through the shared marketplace.", depth: "Name the violation explicitly, then propose cluster- or marketplace-level randomization (by region or seller cluster) instead of a naive seller-level A/B test." },
 };
 
 /* Progressive, per-question hint ladders — nudges toward the shape of a strong answer, never the answer itself. */
@@ -1173,6 +1207,36 @@ const CASE_STUDY_HINTS = {
     'A proxy metric can improve while the real north-star does not move — what guardrail metrics (session length, refund rate, seller diversity) would you gate on to catch that gap?',
     'How would you actually validate that the proxy tracks GMV over time — a periodic offline correlation check between the proxy and realized GMV, or an online A/B test measuring both at once?',
     'If the proxy and the north-star start to diverge months later (proxy still rising, GMV flat), what is your process for catching that drift before it becomes a quarter-ending surprise?'
+  ],
+  csmd026: [
+    "Why might comparing 'price A users' vs. 'price B users' at the individual level be a bad idea for a subscription product — think fairness, visibility between users on the same team/plan, and spillover.",
+    'If you randomize by geography or account-cohort instead of by individual user, what does that buy you, and what does it cost you in statistical power?',
+    'Beyond conversion/revenue, what guardrail would catch this pricing change quietly increasing churn or downgrades before it shows up in quarterly numbers?'
+  ],
+  csmd027: [
+    "Start with the confound: what kind of user is more likely to try a brand-new generative AI feature in the first place, independent of the feature itself?",
+    'If you cannot randomize who gets Firefly, what observational technique would let you build a comparable non-user group (propensity score matching, or finding a natural instrument)?',
+    'How would a staged or randomized rollout (even a partial one) let you sidestep the confound entirely rather than correcting for it after the fact?'
+  ],
+  csmd028: [
+    'List the two different audiences this ranking change affects at once, and what each one actually cares about.',
+    'What primary metric would you pick that reflects value to the person seeing the ad, separate from a pure revenue number?',
+    'What guardrail metric would catch the change "winning" on revenue while quietly making ads less relevant or more annoying?'
+  ],
+  csmd029: [
+    'Before assuming the model update caused the drop, what would confirm — or rule out — that it is the actual cause rather than a coincidence?',
+    'Once you believe it is causal, how would you segment the regression (device, content type, geography, new vs. returning viewers) to localize where it is concentrated?',
+    'What specific signal in the recommendation pipeline would you check next once you know which segment is hit hardest?'
+  ],
+  csmd030: [
+    'Why would early Copilot adopters likely look more engaged even in a world where Copilot did nothing at all?',
+    'What matched-cohort or staged-rollout design would let you compare adopters to a fair comparison group instead of to all non-adopters?',
+    'What would you measure to confirm the effect is coming from Copilot itself, not just from the kind of user who turns new features on first?'
+  ],
+  csmd031: [
+    "Why can't you just randomize which sellers get the change and compare them to sellers who didn't, in a marketplace where buyers see everyone?",
+    'What does randomizing by cluster (region, category, or buyer-seller network segment) buy you that individual-seller randomization does not?',
+    'How would you detect, after the fact, whether interference actually happened — i.e., that control-group sellers were still affected?'
   ]
 };
 let csSelectedQuestion = null;
@@ -1342,6 +1406,15 @@ function populateCsStepFilter(){
     + CASE_STUDY_STEPS.map(s => `<option value="${s.key}">${s.label}</option>`).join('');
 }
 
+let csCompanyFilterPopulated = false;
+function populateCsCompanyFilter(){
+  const sel = document.getElementById('csCompanyFilter');
+  if (!sel || csCompanyFilterPopulated) return;
+  csCompanyFilterPopulated = true;
+  sel.innerHTML = '<option value="">All companies</option>'
+    + CASE_STUDY_COMPANIES.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
 function renderCaseStudyStats(){
   const all = caseStudyQuestions();
   const practicedCount = all.filter(q => progress.practiced[q.id]).length;
@@ -1359,11 +1432,13 @@ function renderCaseStudyTable(){
   const search = ((document.getElementById('csSearch') || {}).value || '').trim().toLowerCase();
   const bmOnly = !!(document.getElementById('csBmOnlyFilter') || {}).checked;
   const stepFilter = (document.getElementById('csStepFilter') || {}).value || '';
+  const companyFilter = (document.getElementById('csCompanyFilter') || {}).value || '';
   const stepOrder = CASE_STUDY_STEPS.map(s => s.key);
   csFilteredList = caseStudyQuestions()
     .filter(q => (!search || q.q.toLowerCase().includes(search))
               && (!bmOnly || !!progress.flagged[q.id])
-              && (!stepFilter || stepOf(q.id) === stepFilter))
+              && (!stepFilter || stepOf(q.id) === stepFilter)
+              && (!companyFilter || companyOf(q.id) === companyFilter))
     .sort((a,b) => {
       const sa = stepOrder.indexOf(stepOf(a.id)), sb = stepOrder.indexOf(stepOf(b.id));
       return sa - sb || a.level - b.level || a.id.localeCompare(b.id);
@@ -1384,9 +1459,11 @@ function renderCaseStudyTable(){
       const done = progress.practiced[q.id] ? '✅' : '';
       const bm = progress.flagged[q.id] ? '🔖' : '';
       const sel = csSelectedQuestion && csSelectedQuestion.id === q.id ? ' selected' : '';
+      const company = companyOf(q.id);
+      const companyTag = company ? `<span class="chip" style="margin-left:6px;">${company}</span>` : '';
       rows += `<tr data-qid="${q.id}" class="${sel.trim()}">
         <td><span class="lvl" style="background:${levelColorStyle(q.level)}">L${q.level}</span></td>
-        <td>${q.q}</td>
+        <td>${q.q}${companyTag}</td>
         <td class="csStatus">${done} ${bm}</td>
         <td><button class="btn-ghost" type="button">Open →</button></td>
       </tr>`;
@@ -1426,7 +1503,9 @@ function selectCaseStudyQuestion(q){
   const { html } = highlightJargon(q.q);
   document.getElementById('csCurrent').innerHTML = html;
   const concepts = CASE_STUDY_CONCEPTS[q.id] || [];
-  document.getElementById('csConcepts').innerHTML = concepts.map(c => `<span class="chip">${c}</span>`).join('');
+  const company = companyOf(q.id);
+  const companyChip = company ? `<span class="chip" style="color:var(--warn);border-color:var(--warn);">🏢 ${company}</span>` : '';
+  document.getElementById('csConcepts').innerHTML = companyChip + concepts.map(c => `<span class="chip">${c}</span>`).join('');
   const breakdown = PROBLEM_BREAKDOWN[q.id];
   document.getElementById('csBreakdown').innerHTML = breakdown
     ? `<div class="bLine">📌 <b>In plain terms:</b> ${breakdown.plain}</div><div class="bLine">🎯 <b>Going deep:</b> ${breakdown.depth}</div>`
@@ -1456,6 +1535,7 @@ function selectCaseStudyQuestion(q){
 function renderCaseStudyTab(){
   renderCaseStudyFramework();
   populateCsStepFilter();
+  populateCsCompanyFilter();
   renderCaseStudyTable();
   if (csSelectedQuestion){ updateCsPos(); updateCsBookmarkBtn(); }
 }
@@ -1472,6 +1552,7 @@ document.getElementById('csNextBtn').addEventListener('click', () => csGoToOffse
 document.getElementById('csSearch').addEventListener('input', () => renderCaseStudyTable());
 document.getElementById('csBmOnlyFilter').addEventListener('change', () => renderCaseStudyTable());
 document.getElementById('csStepFilter').addEventListener('change', () => renderCaseStudyTable());
+document.getElementById('csCompanyFilter').addEventListener('change', () => renderCaseStudyTable());
 
 document.getElementById('csHintBtn').addEventListener('click', () => {
   if (!csSelectedQuestion){ alert('Pick a question from the table first.'); return; }
