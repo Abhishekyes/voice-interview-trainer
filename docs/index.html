@@ -158,6 +158,26 @@
   .metricUse, .metricAvoid{font-size:0.81em; line-height:1.55;}
   .metricUse b, .metricAvoid b{color:var(--text);}
 
+  /* ===== Resume Builder tab ===== */
+  .resumeDoc{background:#fff; color:#1a1a1a; padding:34px 36px; font-family:Calibri,'Segoe UI',Arial,sans-serif; font-size:0.92em; line-height:1.5;}
+  .resumeDoc h2{font-size:1.55em; margin:0 0 2px; color:#1a1a1a;}
+  .resumeDoc .resName{font-size:1.55em; font-weight:700; margin:0 0 2px; color:#1a1a1a;}
+  .resumeDoc .resTitle{color:#1f4e79; font-size:1.05em; margin:0 0 8px; font-weight:600;}
+  .resumeDoc .resContact{color:#404040; font-size:0.85em; border-bottom:1px solid #bfbfbf; padding-bottom:10px; margin-bottom:14px;}
+  .resumeDoc h3{color:#1f4e79; font-size:0.95em; text-transform:uppercase; letter-spacing:0.04em; border-bottom:1px solid #1f4e79; padding-bottom:4px; margin:18px 0 8px;}
+  .resumeDoc .resRole{display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px; font-weight:700; margin-top:10px;}
+  .resumeDoc .resRole .dates{font-weight:400; font-style:italic; color:#404040; font-size:0.9em;}
+  .resumeDoc .resSub{font-style:italic; color:#404040; font-size:0.88em; margin:2px 0 6px;}
+  .resumeDoc ul{margin:4px 0 10px; padding-left:20px;}
+  .resumeDoc li{margin-bottom:4px;}
+  .resumeDoc .placeholder{color:#c00000; font-style:italic;}
+  .resumeDoc b.skillCat{color:#1a1a1a;}
+  @media print{
+    body *{visibility:hidden;}
+    #resumePreview, #resumePreview *{visibility:visible;}
+    #resumePreview{position:absolute; left:0; top:0; width:100%; padding:0.4in;}
+  }
+
   /* ===== Loading overlay & auth bar ===== */
   #loadingOverlay{
     position:fixed; inset:0; background:var(--bg1); display:flex; align-items:center; justify-content:center;
@@ -192,6 +212,7 @@
     <div class="tab" data-tab="textinterview">AI Text Interview<span class="badge">free models available</span></div>
     <div class="tab" data-tab="live">Live Voice Interview<span class="badge">uses OpenAI key</span></div>
     <div class="tab" data-tab="progress">My Progress<span class="badge">$0 · synced</span></div>
+    <div class="tab" data-tab="resume">Resume Builder<span class="badge">$0 · synced</span></div>
     <div class="tab" data-tab="glossary">Glossary<span class="badge">$0</span></div>
   </div>
 
@@ -327,6 +348,10 @@
           <label for="feedbackLevel">Grade against level</label>
           <select id="feedbackLevel"></select>
         </div>
+        <div>
+          <label for="feedbackCompany">Target company style (optional)</label>
+          <select id="feedbackCompany"></select>
+        </div>
       </div>
       <label for="feedbackAnswer">Your answer</label>
       <textarea id="feedbackAnswer" rows="6" placeholder="Paste or type your answer here (or use the transcript from Free Practice)…"></textarea>
@@ -351,7 +376,12 @@
           <label for="levelFilterTI">Level</label>
           <select id="levelFilterTI"></select>
         </div>
+        <div>
+          <label for="companyFilterTI">Target company style</label>
+          <select id="companyFilterTI"></select>
+        </div>
       </div>
+      <div class="hint">Your real experience (3.5–4 yrs) doesn't change what's asked — whatever level you pick above is the bar the interviewer holds you to, deliberately stretching you toward it. Every question also gets pushed into scale, enterprise context, and business outcome, not just the base topic.</div>
       <div class="btn-row">
         <button class="btn-primary" id="startTiBtn">▶ Start interview</button>
         <button class="btn-secondary" id="endTiBtn" disabled>📋 End &amp; get debrief</button>
@@ -387,6 +417,10 @@
         <div>
           <label for="levelFilterLive">Level</label>
           <select id="levelFilterLive"></select>
+        </div>
+        <div>
+          <label for="companyFilterLive">Target company style</label>
+          <select id="companyFilterLive"></select>
         </div>
       </div>
       <div class="row">
@@ -443,6 +477,89 @@
       <div class="btn-row">
         <button class="btn-ghost" id="resetProgressBtn">Reset all progress</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ============ RESUME BUILDER TAB ============ -->
+  <div class="panel" id="panel-resume">
+    <div class="card">
+      <b style="font-size:0.95em;">🧾 Resume Builder</b>
+      <p class="hint">Fill this in once — it's saved to your account (synced like your progress) so you never have to redo it anywhere else. Pick an angle below to see the resume re-target itself for Adobe vs. a general Data Scientist role vs. an AI/MLOps role, then hit Print to save it as a PDF straight from this page.</p>
+
+      <div class="row">
+        <div>
+          <label for="resPhone">Phone</label>
+          <input type="text" id="resPhone" placeholder="+91 ..."/>
+        </div>
+        <div>
+          <label for="resLinkedin">LinkedIn URL</label>
+          <input type="text" id="resLinkedin" placeholder="linkedin.com/in/..."/>
+        </div>
+        <div>
+          <label for="resPortfolio">Extra link (optional)</label>
+          <input type="text" id="resPortfolio" placeholder="a personal site, if you have one beyond GitHub"/>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="resRoleTitle">Current job title</label>
+          <input type="text" id="resRoleTitle"/>
+        </div>
+        <div>
+          <label for="resRoleOrg">Company</label>
+          <input type="text" id="resRoleOrg"/>
+        </div>
+        <div>
+          <label for="resRoleDates">Dates</label>
+          <input type="text" id="resRoleDates"/>
+        </div>
+      </div>
+      <label for="resRoleBullets">Current role — one bullet per line</label>
+      <textarea id="resRoleBullets" rows="5" placeholder="What you actually deliver, who you work with, the scale, and any measured outcome — one point per line."></textarea>
+      <div class="hint">The first two lines are already filled in from your BigQuery/attribution work. Add more lines for anything else you do day to day — dashboards, models, experiments, stakeholders, metrics.</div>
+
+      <div class="row" style="margin-top:14px;">
+        <div>
+          <label for="resEduDegree">Degree</label>
+          <input type="text" id="resEduDegree" placeholder="e.g. B.Tech, Computer Science"/>
+        </div>
+        <div>
+          <label for="resEduSchool">University / college</label>
+          <input type="text" id="resEduSchool"/>
+        </div>
+        <div>
+          <label for="resEduYears">Years</label>
+          <input type="text" id="resEduYears" placeholder="e.g. 2016 – 2020"/>
+        </div>
+        <div>
+          <label for="resEduGpa">GPA / % (optional)</label>
+          <input type="text" id="resEduGpa"/>
+        </div>
+      </div>
+
+      <label for="resCerts">Certifications — one per line (optional)</label>
+      <textarea id="resCerts" rows="2"></textarea>
+
+      <div class="row" style="margin-top:14px; align-items:flex-end;">
+        <div>
+          <label for="resVariant">Resume angle</label>
+          <select id="resVariant">
+            <option value="adobe">Adobe — Data Scientist (experimentation/causal focus)</option>
+            <option value="general">General — Data Scientist (Google/Microsoft/broad)</option>
+            <option value="mlops">AI Engineer / MLOps focus</option>
+          </select>
+        </div>
+        <div class="btn-row" style="margin:0;">
+          <button class="btn-primary" id="resSaveBtn">Save</button>
+          <button class="btn-secondary" id="resPrintBtn">🖨️ Print / Save as PDF</button>
+        </div>
+      </div>
+      <div class="hint" id="resSaveStatus" style="margin-top:6px;">&nbsp;</div>
+    </div>
+
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div id="resumePreview" class="resumeDoc"></div>
     </div>
   </div>
 
@@ -564,6 +681,61 @@ function toggleFlag(qid){
   if (document.getElementById('panel-progress').classList.contains('active')) renderProgressTab();
 }
 
+/* ======================= RESUME BUILDER (per-user Firestore document, same doc as progress) ======================= */
+const RESUME_DEFAULTS = {
+  phone: '', linkedin: '', portfolio: '',
+  roleTitle: 'Data Science Engineer',
+  roleOrg: 'Virtual Employee Pvt. Ltd.',
+  roleDates: 'Apr 2023 – Present',
+  roleBullets: [
+    'Work daily in a multi-terabyte Google BigQuery warehouse (trkkn-x24-mkt-datahub) analyzing advertiser click and conversion attribution data across CPC/CPO deal types, with click-source tracking via gclid, fbclid, and msclkid.',
+    'Built a partitioned-by-date, clustered-by-advertiser/deal-type validation copy of a production attribution table to test and validate pipeline/query changes safely without touching production data.'
+  ],
+  education: { degree: '', school: '', years: '', gpa: '' },
+  certifications: [],
+  variant: 'adobe'
+};
+let resumeData = JSON.parse(JSON.stringify(RESUME_DEFAULTS));
+let saveResumeTimer = null;
+
+async function loadResumeFromCloud(){
+  if (!currentUser){ resumeData = JSON.parse(JSON.stringify(RESUME_DEFAULTS)); return; }
+  try {
+    const snap = await getDoc(doc(db, 'users', currentUser.uid));
+    const d = snap.exists() ? snap.data() : {};
+    const r = d.resume || {};
+    resumeData = {
+      phone: r.phone || '', linkedin: r.linkedin || '', portfolio: r.portfolio || '',
+      roleTitle: r.roleTitle || RESUME_DEFAULTS.roleTitle,
+      roleOrg: r.roleOrg || RESUME_DEFAULTS.roleOrg,
+      roleDates: r.roleDates || RESUME_DEFAULTS.roleDates,
+      roleBullets: (r.roleBullets && r.roleBullets.length) ? r.roleBullets : RESUME_DEFAULTS.roleBullets.slice(),
+      education: Object.assign({ degree:'', school:'', years:'', gpa:'' }, r.education || {}),
+      certifications: r.certifications || [],
+      variant: r.variant || 'adobe'
+    };
+  } catch(e){
+    console.error('Failed to load resume from Firestore', e);
+  }
+}
+function saveResume(showStatus){
+  if (!currentUser) return;
+  clearTimeout(saveResumeTimer);
+  saveResumeTimer = setTimeout(() => {
+    setDoc(doc(db, 'users', currentUser.uid), { resume: resumeData, updatedAt: Date.now() }, { merge: true })
+      .then(() => {
+        if (!showStatus) return;
+        const s = document.getElementById('resSaveStatus');
+        if (s){ s.textContent = 'Saved ✓'; setTimeout(() => { if (s.textContent === 'Saved ✓') s.textContent = ' '; }, 2000); }
+      })
+      .catch(e => {
+        console.error('Failed to save resume to Firestore', e);
+        const s = document.getElementById('resSaveStatus');
+        if (s) s.textContent = 'Could not save — check your connection.';
+      });
+  }, 350);
+}
+
 /* ======================= AUTH ======================= */
 let currentUser = null;
 let authReadyResolve;
@@ -612,8 +784,10 @@ onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   updateAuthUI();
   await loadProgressFromCloud();
+  await loadResumeFromCloud();
   if (isFirstResolution) await migrateLocalProgressIfAny();
   if (document.getElementById('panel-progress') && document.getElementById('panel-progress').classList.contains('active')) renderProgressTab();
+  if (document.getElementById('panel-resume') && document.getElementById('panel-resume').classList.contains('active')) renderResumeTab();
   if (isFirstResolution) authReadyResolve(user);
 });
 
@@ -682,6 +856,168 @@ document.getElementById('resetProgressBtn').addEventListener('click', () => {
   renderProgressTab();
 });
 
+/* ======================= RESUME BUILDER: rendering ======================= */
+const RESUME_VARIANTS = {
+  adobe: {
+    title: 'Data Scientist | Experimentation & Analytics',
+    summary: 'Data Science Engineer with 3.5+ years designing experimentation and analytics systems for ad-tech and e-commerce platforms. Builds full-stack A/B testing infrastructure (power analysis, CUPED, sequential and Bayesian testing, guardrail/SRM checks) and works daily in BigQuery/SQL on advertiser click and conversion attribution data (CPC/CPO campaigns). Has hands-on exposure shipping a GenAI-powered product feature (LLM-based interview feedback). Looking to bring rigorous, business-grounded experimentation to Adobe’s growth and analytics teams.',
+    skills: [
+      ['Experimentation & Causal Inference', 'A/B test design & power analysis, CUPED, sequential testing, Bayesian A/B testing, guardrail metrics & SRM detection, difference-in-differences, propensity score matching, synthetic control'],
+      ['Languages & Analytics', 'Python, SQL, pandas, NumPy, SciPy, statsmodels'],
+      ['Data & Cloud', 'Google BigQuery, GCP, table partitioning/clustering, data pipeline design'],
+      ['MLOps & Engineering', 'MLflow, DVC, FastAPI, Docker, GitHub Actions (CI/CD), pytest, Git'],
+      ['Attribution & Web Analytics', 'Click/conversion attribution (gclid, fbclid, msclkid), CPC/CPO campaign measurement, advertiser analytics'],
+      ['Applied GenAI', 'LLM-based feedback/evaluation features (OpenAI API), prompt-driven product features']
+    ]
+  },
+  general: {
+    title: 'Data Scientist',
+    summary: 'Data Science Engineer with 3.5+ years of experience across experimentation, causal inference, MLOps, and large-scale SQL/cloud data analysis. Builds statistically rigorous A/B testing infrastructure and production-style ML pipelines, and ships full-stack, AI-powered products end to end.',
+    skills: [
+      ['Statistics & Experimentation', 'A/B testing, power analysis, CUPED, sequential testing, Bayesian methods, guardrail metrics, SRM detection, difference-in-differences, propensity score matching, synthetic control'],
+      ['Machine Learning', 'Classification/regression modeling, feature engineering, model evaluation'],
+      ['Languages & Tools', 'Python, SQL, pandas, NumPy, SciPy, statsmodels, scikit-learn'],
+      ['Data & Cloud', 'Google BigQuery, GCP, Firebase/Firestore, data pipeline & schema design'],
+      ['MLOps & Engineering', 'MLflow, DVC, FastAPI, Docker, GitHub Actions (CI/CD), pytest, Git'],
+      ['Applied GenAI', 'LLM-integrated product features (OpenAI API), prompt design for evaluation/feedback tasks']
+    ]
+  },
+  mlops: {
+    title: 'AI / ML Engineer | MLOps',
+    summary: 'ML/AI Engineer with 3.5+ years of experience taking models and experiments from notebook to production: data versioning, experiment tracking, containerized serving, and CI/CD. Builds statistically sound experimentation systems and full-stack, LLM-integrated products, and works daily with large-scale SQL/BigQuery data pipelines.',
+    skills: [
+      ['MLOps & Engineering', 'MLflow, DVC, FastAPI, Docker, GitHub Actions (CI/CD), pytest, Git, REST API design'],
+      ['Machine Learning & Statistics', 'Model training & evaluation, feature engineering, A/B testing, power analysis, CUPED, sequential testing, Bayesian methods, guardrail metrics'],
+      ['Languages & Tools', 'Python, SQL, pandas, NumPy, SciPy, scikit-learn'],
+      ['Data & Cloud', 'Google BigQuery, GCP, Firebase/Firestore, data pipeline & schema design, partitioning/clustering'],
+      ['Applied GenAI', 'LLM API integration (OpenAI) for product features, prompt design for automated evaluation/feedback']
+    ]
+  }
+};
+const RESUME_PROJECTS = [
+  {
+    name: 'A/B Testing & Experimentation Platform — HomeTiger', org: 'Personal / Portfolio Project', dates: '2026',
+    sub: 'github.com/abhishekyes · Python, SQL, MLflow, pytest, GitHub Actions',
+    bullets: [
+      'Built an end-to-end experimentation platform for an e-commerce advertiser marketplace (CPC/CPO ad campaigns), covering the full statistical lifecycle: experiment design, power analysis, and both frequentist and Bayesian hypothesis testing.',
+      'Implemented CUPED variance reduction and sequential testing to shorten experiment run-time and reduce false-positive risk.',
+      'Added guardrail metrics and Sample Ratio Mismatch (SRM) detection to catch broken experiments before they reach a launch decision.',
+      'Engineered it as production-style software: MLflow experiment tracking, a SQLite data layer, a full pytest suite, GitHub Actions CI/CD, an end-to-end demo notebook, and a documented cloud-migration roadmap.'
+    ]
+  },
+  {
+    name: 'MLOps Pipelines — Ad-Click & Ride-Demand Prediction', org: 'Personal / Portfolio Project', dates: '2026',
+    sub: 'github.com/abhishekyes · DVC, MLflow, FastAPI, Docker, GitHub Actions',
+    bullets: [
+      'Built two end-to-end ML pipelines (ad-click-mlops, uber-ride-mlops) with data versioning (DVC), experiment tracking (MLflow), model serving via FastAPI, containerization (Docker), and CI/CD (GitHub Actions).'
+    ]
+  },
+  {
+    name: 'Voice Interview Trainer', org: 'Personal Product', dates: '2026',
+    sub: 'abhishekyes.github.io/voice-interview-trainer · JavaScript, Firebase/Firestore, OpenAI API',
+    bullets: [
+      'Designed and shipped a full-stack, AI-powered interview-prep web app: speech-based mock interviews, LLM-generated feedback, and Firestore-backed progress tracking across 14+ interview rounds.',
+      'Built Firebase Auth (Google sign-in + anonymous account linking) and a versioned content model (300+ glossary terms, structured hint ladders) that updates live without redeploying the app.'
+    ]
+  }
+];
+function escapeResumeHtml(s){ return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderResumePreview(){
+  const v = RESUME_VARIANTS[resumeData.variant] || RESUME_VARIANTS.adobe;
+  const eh = escapeResumeHtml;
+  const contactParts = [
+    'vvabhi2776@gmail.com',
+    resumeData.phone ? eh(resumeData.phone) : '<span class="placeholder">[add phone]</span>',
+    'Ghaziabad (NCR), India',
+    'github.com/abhishekyes',
+    resumeData.linkedin ? eh(resumeData.linkedin) : '<span class="placeholder">[add LinkedIn]</span>'
+  ];
+  if (resumeData.portfolio) contactParts.push(eh(resumeData.portfolio));
+
+  const bulletLines = (resumeData.roleBullets || []).filter(Boolean);
+  const roleBulletsHtml = bulletLines.length
+    ? bulletLines.map(b => `<li>${eh(b)}</li>`).join('')
+    : '<li class="placeholder">Add at least one bullet above describing your current role.</li>';
+
+  const hasEdu = resumeData.education.degree || resumeData.education.school;
+  const eduHtml = hasEdu
+    ? `<div class="resRole"><span>${resumeData.education.degree ? eh(resumeData.education.degree) : '<span class="placeholder">[add degree]</span>'}</span><span class="dates">${eh(resumeData.education.years)}</span></div>
+       <div class="resSub">${resumeData.education.school ? eh(resumeData.education.school) : '<span class="placeholder">[add university]</span>'}${resumeData.education.gpa ? ' · ' + eh(resumeData.education.gpa) : ''}</div>`
+    : `<div class="placeholder">Add your degree and university above.</div>`;
+
+  const certsHtml = (resumeData.certifications || []).length
+    ? `<h3>Certifications</h3><ul>${resumeData.certifications.map(c => `<li>${eh(c)}</li>`).join('')}</ul>` : '';
+
+  const skillsHtml = v.skills.map(([cat, items]) => `<div style="margin-bottom:6px;"><b class="skillCat">${eh(cat)}:</b> ${eh(items)}</div>`).join('');
+
+  const projectsHtml = RESUME_PROJECTS.map(p => `
+    <div class="resRole"><span>${eh(p.name)} – ${eh(p.org)}</span><span class="dates">${eh(p.dates)}</span></div>
+    <div class="resSub">${eh(p.sub)}</div>
+    <ul>${p.bullets.map(b => `<li>${eh(b)}</li>`).join('')}</ul>
+  `).join('');
+
+  const el = document.getElementById('resumePreview');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="resName">ABHISHEK</div>
+    <div class="resTitle">${eh(v.title)}</div>
+    <div class="resContact">${contactParts.join('&nbsp;&nbsp;|&nbsp;&nbsp;')}</div>
+    <h3>Summary</h3>
+    <p>${eh(v.summary)}</p>
+    <h3>Core Skills</h3>
+    ${skillsHtml}
+    <h3>Experience</h3>
+    <div class="resRole"><span>${eh(resumeData.roleTitle)} – ${eh(resumeData.roleOrg)}</span><span class="dates">${eh(resumeData.roleDates)}</span></div>
+    <ul>${roleBulletsHtml}</ul>
+    <h3>Projects</h3>
+    ${projectsHtml}
+    <h3>Education</h3>
+    ${eduHtml}
+    ${certsHtml}
+  `;
+}
+
+function fillResumeForm(){
+  document.getElementById('resPhone').value = resumeData.phone;
+  document.getElementById('resLinkedin').value = resumeData.linkedin;
+  document.getElementById('resPortfolio').value = resumeData.portfolio;
+  document.getElementById('resRoleTitle').value = resumeData.roleTitle;
+  document.getElementById('resRoleOrg').value = resumeData.roleOrg;
+  document.getElementById('resRoleDates').value = resumeData.roleDates;
+  document.getElementById('resRoleBullets').value = resumeData.roleBullets.join('\n');
+  document.getElementById('resEduDegree').value = resumeData.education.degree;
+  document.getElementById('resEduSchool').value = resumeData.education.school;
+  document.getElementById('resEduYears').value = resumeData.education.years;
+  document.getElementById('resEduGpa').value = resumeData.education.gpa;
+  document.getElementById('resCerts').value = resumeData.certifications.join('\n');
+  document.getElementById('resVariant').value = resumeData.variant;
+}
+function collectResumeForm(){
+  resumeData.phone = document.getElementById('resPhone').value.trim();
+  resumeData.linkedin = document.getElementById('resLinkedin').value.trim();
+  resumeData.portfolio = document.getElementById('resPortfolio').value.trim();
+  resumeData.roleTitle = document.getElementById('resRoleTitle').value.trim();
+  resumeData.roleOrg = document.getElementById('resRoleOrg').value.trim();
+  resumeData.roleDates = document.getElementById('resRoleDates').value.trim();
+  resumeData.roleBullets = document.getElementById('resRoleBullets').value.split('\n').map(s => s.trim()).filter(Boolean);
+  resumeData.education.degree = document.getElementById('resEduDegree').value.trim();
+  resumeData.education.school = document.getElementById('resEduSchool').value.trim();
+  resumeData.education.years = document.getElementById('resEduYears').value.trim();
+  resumeData.education.gpa = document.getElementById('resEduGpa').value.trim();
+  resumeData.certifications = document.getElementById('resCerts').value.split('\n').map(s => s.trim()).filter(Boolean);
+  resumeData.variant = document.getElementById('resVariant').value;
+}
+function renderResumeTab(){
+  fillResumeForm();
+  renderResumePreview();
+}
+const resumePanelEl = document.getElementById('panel-resume');
+resumePanelEl.addEventListener('input', () => { collectResumeForm(); renderResumePreview(); saveResume(true); });
+resumePanelEl.addEventListener('change', () => { collectResumeForm(); renderResumePreview(); saveResume(true); });
+document.getElementById('resSaveBtn').addEventListener('click', () => { collectResumeForm(); renderResumePreview(); saveResume(true); });
+document.getElementById('resPrintBtn').addEventListener('click', () => { collectResumeForm(); renderResumePreview(); window.print(); });
+
 /* ======================= FREE PRACTICE: Web Speech ======================= */
 let selectedQuestion = null;
 let recognition = null;
@@ -699,6 +1035,10 @@ function populateRoundSelect(sel, includeAll){
 function populateLevelSelect(sel, includeAll){
   if (includeAll){ const o = document.createElement('option'); o.value='0'; o.textContent='All levels'; sel.appendChild(o); }
   LEVELS.forEach(l => { const o = document.createElement('option'); o.value = String(l.n); o.textContent = `L${l.n} ${l.label} (${l.sub})`; sel.appendChild(o); });
+}
+function populateCompanySelect(sel){
+  const any = document.createElement('option'); any.value=''; any.textContent='Any / general'; sel.appendChild(any);
+  CASE_STUDY_COMPANIES.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
 }
 populateRoundSelect(roundFilter, true);
 populateLevelSelect(levelFilter, true);
@@ -1372,12 +1712,15 @@ document.getElementById('csAiReviewBtn').addEventListener('click', async () => {
   resultBox.hidden = false;
   resultBox.textContent = 'Contacting the model…';
   const stepLbl = stepLabel(stepOf(csSelectedQuestion.id));
+  const qCompany = companyOf(csSelectedQuestion.id);
   const systemPrompt = `You are a senior/staff-level engineer at a top tech company (Adobe/MAANG bar) doing a professional code/solution review `
-    + `for a case-study answer to the "${stepLbl}" step of an applied ML system design interview. Review the candidate's submission below with `
+    + `for a case-study answer to the "${stepLbl}" step of an applied ML system design interview. ${companyStylePrompt(qCompany)}${DEPTH_COVERAGE_RULE} `
+    + `Review the candidate's submission below with `
     + `rigor and respect — direct, specific, no fluff. Respond in exactly these sections:\n`
     + `1) ISSUES FOUND: a numbered list, each tagged [BLOCKER]/[MAJOR]/[MINOR], naming the specific problem.\n`
     + `2) CLEAN CODE & DESIGN: naming, structure, and any SOLID principle violated (name which one) if this is code; readability/structure if it's prose.\n`
-    + `3) WHAT'S MISSING: concepts, edge cases, or metrics a top Applied Data Scientist would have covered here that this submission didn't.\n`
+    + `3) WHAT'S MISSING: concepts, edge cases, or metrics a top Applied Data Scientist would have covered here that this submission didn't — including `
+    + `scale, enterprise context, or business outcome if those were skipped.\n`
     + `4) NEXT STEPS: a short prioritized to-do list to fix it, most important first.\n`
     + `Keep the whole response under 320 words. Be honest and specific — do not pad with generic praise.`;
   try{
@@ -1773,6 +2116,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'progress') renderProgressTab();
     if (tab.dataset.tab === 'casestudy') renderCaseStudyTab();
+    if (tab.dataset.tab === 'resume') renderResumeTab();
   });
 });
 renderCaseStudyTab();
@@ -1917,6 +2261,8 @@ function friendlyLLMError(err){
 const feedbackLevelSel = document.getElementById('feedbackLevel');
 populateLevelSelect(feedbackLevelSel, false);
 feedbackLevelSel.value = '3';
+const feedbackCompanySel = document.getElementById('feedbackCompany');
+populateCompanySelect(feedbackCompanySel);
 
 const fbProvider = mountProviderPanel('providerPanel-fb', 'fb', updateFeedbackBanner);
 function updateFeedbackBanner(){
@@ -1938,6 +2284,7 @@ document.getElementById('gradeBtn').addEventListener('click', async () => {
   const answer = document.getElementById('feedbackAnswer').value.trim();
   const level = parseInt(feedbackLevelSel.value, 10) || 3;
   const lvl = levelInfo(level);
+  const company = feedbackCompanySel ? feedbackCompanySel.value : '';
   if (!question || !answer){ alert('Need both a question and your answer.'); return; }
 
   const btn = document.getElementById('gradeBtn');
@@ -1948,10 +2295,12 @@ document.getElementById('gradeBtn').addEventListener('click', async () => {
 
   const systemPrompt = `You are a rigorous but fair technical interview coach for Applied Data Scientist / AI Engineer / MLOps roles, `
     + `grading against a ${lvl.label} (${lvl.sub}) bar — calibrate strictly to that level, not harder and not softer. `
+    + `${companyStylePrompt(company)}${STRETCH_BAR_RULE} ${DEPTH_COVERAGE_RULE} `
     + `For the given question and spoken/written answer, respond with these exact sections:\n`
     + `1) GRAMMAR & PHRASING: quote 2-4 specific phrases the candidate used and give more professional/native-sounding alternatives. If the `
     + `answer is already clean, say so briefly.\n`
-    + `2) TECHNICAL CONTENT FEEDBACK: what was strong, what was missing or wrong, judged against the ${lvl.label} bar above. Be specific and honest.\n`
+    + `2) TECHNICAL CONTENT FEEDBACK: what was strong, what was missing or wrong, judged against the ${lvl.label} bar above — including whether `
+    + `they addressed scale, enterprise context, and business outcome. Be specific and honest.\n`
     + `3) JARGON CHECK: explain in plain English any technical terms the candidate used loosely or incorrectly (or say "none" if fine).\n`
     + `4) ONE CONCRETE IMPROVEMENT TIP: a single, actionable thing to do differently next time.\n`
     + `Keep the whole response under 220 words, no fluff, no generic encouragement filler.`;
@@ -1967,12 +2316,39 @@ document.getElementById('gradeBtn').addEventListener('click', async () => {
   }
 });
 
-/* ======================= SHARED: hint ladder + debrief prompt builders ======================= */
+/* ======================= SHARED: hint ladder + company calibration + debrief prompt builders ======================= */
 const HINT_LADDER_RULE = `Never reveal the correct answer or a full solution before the candidate has genuinely attempted the problem. Use a `
   + `hint ladder if they're stuck: (1) a subtle nudge, (2) a more directional hint, (3) name the relevant technique or concept, (4) sketch a `
   + `near-solution, and only give the full explanation after repeated genuine struggle across multiple hints. Always let them try again after each hint.`;
 
-function buildInterviewSystemPrompt(round, level, mode){
+/* Company-specific interview-style calibration, reused by the interviewer, the debrief, and the case-study AI review. */
+const COMPANY_INTERVIEW_STYLE = {
+  Adobe: `You are calibrating specifically to ADOBE's Data Scientist interview style: heavy weight on rigorous A/B test design and causal inference `
+    + `(not just naming the right test — justifying it), calibrated judgment on pricing/subscription/Creative-Cloud-style product metrics, and the `
+    + `ability to turn an analysis into a clear business recommendation a VP could act on. Push hard on identifying assumptions (parallel trends, `
+    + `SUTVA, instrument validity) and on tying every answer back to a business decision.`,
+  Google: `You are calibrating specifically to GOOGLE's Data Scientist / Analytics interview style: structured metric definition (primary/secondary/`
+    + `guardrail metrics stated explicitly), statistical rigor at massive scale (billions of events/users), and clean, step-by-step problem `
+    + `decomposition out loud. Push hard on what breaks about a naive metric or test at that scale, and on structured "clarify — hypothesize — `
+    + `design — validate" thinking.`,
+  Microsoft: `You are calibrating specifically to MICROSOFT's Data Scientist interview style: enterprise/B2B product context (adoption among existing `
+    + `power users vs. new users, org-level rather than purely individual behavior), pragmatic trade-offs between engineering/data constraints and `
+    + `analysis rigor, and clear cross-functional communication. Push hard on how the approach changes for enterprise customers (contracts, `
+    + `compliance, multi-seat accounts) versus a pure consumer product.`
+};
+function companyStylePrompt(company){ return (company && COMPANY_INTERVIEW_STYLE[company]) ? COMPANY_INTERVIEW_STYLE[company] + ' ' : ''; }
+
+/* Always-on rules: the candidate's real experience (3.5-4 yrs) never softens the bar, and every question gets pushed deeper — no topic skipped. */
+const STRETCH_BAR_RULE = `The candidate has roughly 3.5-4 years of real-world experience, but you are DELIBERATELY interviewing them one to two notches `
+  + `above that — hold the line at the level/bar stated above and do not soften questions or follow-ups just because their actual experience is `
+  + `lower. The goal is to stretch them to the target bar, not to match their current level.`;
+const DEPTH_COVERAGE_RULE = `For every question, before moving on, also push into: (a) SCALE — how the approach breaks or must change as data/users/`
+  + `traffic grow by 10-100x; (b) ENTERPRISE CONTEXT — how the answer changes for large/enterprise customers (compliance, security, multi-team or `
+  + `multi-tenant complexity, cost at scale); and (c) BUSINESS OUTCOME — what specific decision or metric this would move, and how you'd report it `
+  + `to a non-technical stakeholder. Do not skip these three angles even if the base question doesn't explicitly ask for them, and do not move to `
+  + `the next question until at least one of them has been probed.`;
+
+function buildInterviewSystemPrompt(round, level, mode, company){
   const lvl = levelInfo(level);
   const base = ROUND_INSTRUCTIONS[round] || '';
   const modeNote = mode === 'text'
@@ -1980,18 +2356,20 @@ function buildInterviewSystemPrompt(round, level, mode){
     : `Speak naturally like a real interviewer on a call — concise turns, real follow-ups, not a lecture.`;
   return `You are a professional, rigorous technical interviewer at a top-tier tech company, conducting the "${round}" round of a `
     + `mock interview for an Applied Data Scientist / AI Engineer / MLOps role. Calibrate your bar precisely to ${lvl.label} level `
-    + `(${lvl.sub} of experience) — not harder, not softer than that. ${base} ${HINT_LADDER_RULE} ${modeNote} `
+    + `(${lvl.sub} of experience) — not harder, not softer than that. ${base} ${companyStylePrompt(company)}${STRETCH_BAR_RULE} ${DEPTH_COVERAGE_RULE} `
+    + `${HINT_LADDER_RULE} ${modeNote} `
     + `Start now with a brief one-line intro to this round, then your first question.`;
 }
 
-function buildDebriefSystemPrompt(level){
+function buildDebriefSystemPrompt(level, company){
   const lvl = levelInfo(level);
   return `You are a senior interview panel lead reviewing a mock interview transcript for an Applied Data Scientist / AI Engineer / MLOps `
-    + `candidate, graded against a ${lvl.label} (${lvl.sub}) bar. Respond with exactly these sections:\n`
+    + `candidate, graded against a ${lvl.label} (${lvl.sub}) bar. ${companyStylePrompt(company)}${STRETCH_BAR_RULE} Respond with exactly these sections:\n`
     + `1) OVERALL RATING: one of Strong Hire / Hire / Leaning Hire / Leaning No Hire / No Hire / Strong No Hire, with one sentence why.\n`
     + `2) STRENGTHS: 2-4 bullet points with specific evidence quoted or paraphrased from the transcript.\n`
     + `3) WEAKNESSES: 2-4 bullet points, specific and evidence-based, not generic.\n`
-    + `4) MISSED OPPORTUNITIES: things a strong candidate would have raised or asked about but this candidate didn't.\n`
+    + `4) MISSED OPPORTUNITIES: things a strong candidate would have raised or asked about but this candidate didn't — explicitly check whether `
+    + `scale, enterprise context, and business outcome were ever addressed, and call it out if not.\n`
     + `5) ENGLISH / PHRASING NOTES: 2-3 concrete phrasing or grammar improvements from what they actually said.\n`
     + `Be honest and specific — this is a stress test, not a pep talk. Keep it under 300 words total.`;
 }
@@ -1999,8 +2377,10 @@ function buildDebriefSystemPrompt(level){
 /* ======================= AI TEXT INTERVIEW MODE ======================= */
 const roundFilterTI = document.getElementById('roundFilterTI');
 const levelFilterTI = document.getElementById('levelFilterTI');
+const companyFilterTI = document.getElementById('companyFilterTI');
 populateRoundSelect(roundFilterTI, false);
 populateLevelSelect(levelFilterTI, false);
+populateCompanySelect(companyFilterTI);
 levelFilterTI.value = '3';
 
 const tiProvider = mountProviderPanel('providerPanel-ti', 'ti');
@@ -2033,20 +2413,21 @@ startTiBtn.addEventListener('click', async () => {
   const { provider, model, apiKey } = tiProvider.get();
   const round = roundFilterTI.value || ROUNDS[0];
   const level = parseInt(levelFilterTI.value, 10) || 3;
+  const company = companyFilterTI.value;
   const lvl = levelInfo(level);
 
   startTiBtn.disabled = true; startTiBtn.textContent = 'Starting…';
-  tiTurns = [{ role:'user', content: `Let's begin. I'm ready for the ${round} round at ${lvl.label} level.` }];
+  tiTurns = [{ role:'user', content: `Let's begin. I'm ready for the ${round} round at ${lvl.label} level${company ? (' with an ' + company + ' interview style') : ''}.` }];
   tiMsgs.innerHTML = '';
 
   try{
-    const systemPrompt = buildInterviewSystemPrompt(round, level, 'text');
+    const systemPrompt = buildInterviewSystemPrompt(round, level, 'text', company);
     const reply = await callLLM(provider, model, apiKey, systemPrompt, tiTurns);
     tiTurns.push({ role:'assistant', content: reply });
     addTiMessage('assistant', reply);
     if ('speechSynthesis' in window){ try{ speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(reply)); }catch(e){} }
     tiAnswerInput.disabled = false; sendTiBtn.disabled = false; tiMicBtn.disabled = false; endTiBtn.disabled = false;
-    roundFilterTI.disabled = true; levelFilterTI.disabled = true;
+    roundFilterTI.disabled = true; levelFilterTI.disabled = true; companyFilterTI.disabled = true;
   } catch(err){
     console.error(err);
     addTiMessage('assistant', friendlyLLMError(err));
@@ -2061,6 +2442,7 @@ async function sendTiAnswer(){
   const { provider, model, apiKey } = tiProvider.get();
   const round = roundFilterTI.value || ROUNDS[0];
   const level = parseInt(levelFilterTI.value, 10) || 3;
+  const company = companyFilterTI.value;
 
   tiTurns.push({ role:'user', content: text });
   addTiMessage('user', text);
@@ -2068,7 +2450,7 @@ async function sendTiAnswer(){
   sendTiBtn.disabled = true;
 
   try{
-    const systemPrompt = buildInterviewSystemPrompt(round, level, 'text');
+    const systemPrompt = buildInterviewSystemPrompt(round, level, 'text', company);
     const reply = await callLLM(provider, model, apiKey, systemPrompt, tiTurns);
     tiTurns.push({ role:'assistant', content: reply });
     addTiMessage('assistant', reply);
@@ -2110,6 +2492,7 @@ tiMicStopBtn.addEventListener('click', () => {
 endTiBtn.addEventListener('click', async () => {
   const { provider, model, apiKey } = tiProvider.get();
   const level = parseInt(levelFilterTI.value, 10) || 3;
+  const company = companyFilterTI.value;
   if (!tiTurns.some(t => t.role === 'user' && !t.content.startsWith("Let's begin"))){
     alert('Answer at least one question before ending the interview.'); return;
   }
@@ -2120,7 +2503,7 @@ endTiBtn.addEventListener('click', async () => {
 
   const transcriptText = tiTurns.map(t => (t.role === 'user' ? 'CANDIDATE: ' : 'INTERVIEWER: ') + t.content).join('\n');
   try{
-    const text = await callLLM(provider, model, apiKey, buildDebriefSystemPrompt(level), [{ role:'user', content: 'TRANSCRIPT:\n' + transcriptText }]);
+    const text = await callLLM(provider, model, apiKey, buildDebriefSystemPrompt(level, company), [{ role:'user', content: 'TRANSCRIPT:\n' + transcriptText }]);
     box.textContent = text;
   } catch(err){
     console.error(err);
@@ -2135,8 +2518,10 @@ document.getElementById('rtModelLabel').textContent = document.getElementById('r
 
 const roundFilterLive = document.getElementById('roundFilterLive');
 const levelFilterLive = document.getElementById('levelFilterLive');
+const companyFilterLive = document.getElementById('companyFilterLive');
 populateRoundSelect(roundFilterLive, false);
 populateLevelSelect(levelFilterLive, false);
+populateCompanySelect(companyFilterLive);
 levelFilterLive.value = '3';
 
 let livePc = null, liveDc = null, liveMic = null, liveTimerInt = null, liveStartTime = null;
@@ -2210,6 +2595,7 @@ startLiveBtn.addEventListener('click', async () => {
   const apiKey = document.getElementById('apiKeyLive').value.trim();
   const round = roundFilterLive.value || ROUNDS[0];
   const level = parseInt(levelFilterLive.value, 10) || 3;
+  const company = companyFilterLive.value;
   const eagerness = document.getElementById('eagerness').value;
   const voice = document.getElementById('rtVoice').value;
   const model = document.getElementById('rtModelInput').value.trim() || 'gpt-realtime-2.1-mini';
@@ -2228,7 +2614,7 @@ startLiveBtn.addEventListener('click', async () => {
         session: {
           type: 'realtime',
           model,
-          instructions: buildInterviewSystemPrompt(round, level, 'voice'),
+          instructions: buildInterviewSystemPrompt(round, level, 'voice', company),
           audio: {
             output: { voice },
             input: { turn_detection: { type: 'semantic_vad', eagerness, create_response: true, interrupt_response: true } }
@@ -2314,7 +2700,7 @@ function cleanupLive(){
   stopTimer();
   liveAssistantEl = null; liveAssistantBuffer = '';
   setTalk(null);
-  roundFilterLive.disabled = false; levelFilterLive.disabled = false;
+  roundFilterLive.disabled = false; levelFilterLive.disabled = false; companyFilterLive.disabled = false;
 }
 
 stopLiveBtn.addEventListener('click', () => {
@@ -2328,6 +2714,7 @@ debriefBtn.addEventListener('click', async () => {
   const apiKey = document.getElementById('apiKeyLive').value.trim();
   const model = document.getElementById('chatModelInput2').value.trim() || 'gpt-5.6-luna';
   const level = parseInt(levelFilterLive.value, 10) || 3;
+  const company = companyFilterLive.value;
   if (!apiKey){ alert('Paste your OpenAI API key first.'); return; }
   if (!fullTranscriptTurns.length){ alert('No conversation yet to debrief.'); return; }
 
@@ -2338,7 +2725,7 @@ debriefBtn.addEventListener('click', async () => {
 
   const transcriptText = fullTranscriptTurns.map(t => (t.role === 'user' ? 'CANDIDATE: ' : 'INTERVIEWER: ') + t.text).join('\n');
   try{
-    const text = await callLLM('openai', model, apiKey, buildDebriefSystemPrompt(level), [{ role:'user', content: 'TRANSCRIPT:\n' + transcriptText }]);
+    const text = await callLLM('openai', model, apiKey, buildDebriefSystemPrompt(level, company), [{ role:'user', content: 'TRANSCRIPT:\n' + transcriptText }]);
     box.textContent = text;
   } catch(err){
     console.error(err);
