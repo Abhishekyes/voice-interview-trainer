@@ -204,6 +204,11 @@
     background:var(--card2); border:1px dashed var(--border); border-radius:8px; line-height:1.5;
   }
   .skillsHint b{color:var(--text);}
+  .studyList{display:flex; flex-direction:column; gap:10px; margin-top:12px;}
+  .studyItem{background:#0c1120; border:1px solid var(--border); border-radius:10px; padding:12px 14px;}
+  .studyItem .studyMeta{font-size:0.75em; color:var(--muted); margin-bottom:6px;}
+  .studyItem .studyQ{font-weight:600; margin-bottom:10px; line-height:1.45;}
+  .studyAnswerBox{margin-top:10px; padding:10px 12px; background:var(--bg1); border:1px dashed var(--border); border-radius:8px; font-size:0.87em; line-height:1.65;}
 </style>
 </head>
 <body>
@@ -229,6 +234,7 @@
     <div class="tab" data-tab="feedback">AI Feedback<span class="badge">free models available</span></div>
     <div class="tab" data-tab="textinterview">AI Text Interview<span class="badge">free models available</span></div>
     <div class="tab" data-tab="live">Live Voice Interview<span class="badge">uses OpenAI key</span></div>
+    <div class="tab" data-tab="study">Study Mode<span class="badge">all Q&amp;A · downloadable</span></div>
     <div class="tab" data-tab="progress">My Progress<span class="badge">$0 · synced</span></div>
     <div class="tab" data-tab="resume">Resume Builder<span class="badge">$0 · synced</span></div>
     <div class="tab" data-tab="glossary">Glossary<span class="badge">$0</span></div>
@@ -410,6 +416,12 @@
       </div>
       <div class="skillsHint" id="tiSkillsHint" hidden></div>
       <div class="hint" id="tiYoeHint"></div>
+      <label class="bmToggle" style="margin-top:6px;"><input type="checkbox" id="tiResumeModeToggle"/> 🎯 Hardcore mode: deep-dive &amp; cross-question my resume/projects instead of a standard round</label>
+      <div id="tiResumeBox" hidden style="margin-top:8px;">
+        <label for="tiResumeText">Paste your resume / project write-up (the more detail — tech used, scale, metrics — the harder it can grill you)</label>
+        <textarea id="tiResumeText" rows="7" placeholder="Paste resume bullets or a project description here…"></textarea>
+        <div class="hint">The interviewer will pick one project at a time and push hard: why this tech and not an alternative, how much impact/scale, why it was needed, and what it would break at 10-100x — same stretch bar and hint-ladder rules as the standard rounds.</div>
+      </div>
       <div class="btn-row">
         <button class="btn-primary" id="startTiBtn">▶ Start interview</button>
         <button class="btn-secondary" id="endTiBtn" disabled>📋 End &amp; get debrief</button>
@@ -497,6 +509,34 @@
       </div>
       <div class="debrief" id="debriefResult" hidden></div>
       <div class="modelRow">Realtime model: <input type="text" id="rtModelInput" value="gpt-realtime-2.1-mini"/> · Debrief uses chat model <input type="text" id="chatModelInput2" value="gpt-5.6-luna" style="width:110px;"/></div>
+    </div>
+  </div>
+
+  <!-- ============ STUDY MODE TAB ============ -->
+  <div class="panel" id="panel-study">
+    <div class="card">
+      <div class="free-banner">📖 Every question in the bank, with a full model answer you can reveal on demand — generated once using the free Groq/Gemini key you saved on the AI Feedback tab, then cached in this browser so it's instant (and free) after that. Try answering yourself first, then reveal to check.</div>
+      <div class="row">
+        <div>
+          <label for="roundFilterStudy">Interview round</label>
+          <select id="roundFilterStudy"></select>
+        </div>
+        <div>
+          <label for="levelFilterStudy">Level</label>
+          <select id="levelFilterStudy"></select>
+        </div>
+      </div>
+      <div class="qtoolbar">
+        <input type="text" id="studySearch" placeholder="🔍 Search questions by keyword…"/>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" id="studyGenAllBtn" type="button">⚡ Generate all answers in this filter</button>
+        <button class="btn-ghost" id="studyStopBtn" type="button" disabled>■ Stop generating</button>
+        <button class="btn-secondary" id="studyDownloadBtn" type="button">⬇ Download this filter as a study file (.md)</button>
+      </div>
+      <div class="hint" id="studyGenProgress">&nbsp;</div>
+      <div class="hint">Each question starts collapsed — reveal one at a time to self-check after you attempt an answer, at your own pace. "Generate all" pre-fills every answer in the current filter in the background, then Download bundles whatever's cached (generated or not) into one file.</div>
+      <div class="studyList" id="studyList"></div>
     </div>
   </div>
 
@@ -2255,6 +2295,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (tab.dataset.tab === 'progress') renderProgressTab();
     if (tab.dataset.tab === 'casestudy') renderCaseStudyTab();
     if (tab.dataset.tab === 'resume') renderResumeTab();
+    if (tab.dataset.tab === 'study') renderStudyList();
   });
 });
 renderCaseStudyTab();
@@ -2508,6 +2549,27 @@ function buildInterviewSystemPrompt(round, level, mode, company){
     + `Start now with a brief one-line intro to this round, then your first question.`;
 }
 
+/* Resume/project deep-dive mode: same rigor rules as a normal round, but the "syllabus" is whatever the
+   candidate actually pasted in, so every question is anchored to something they claim to have built. */
+function buildResumeDiveSystemPrompt(resumeText, level, mode, company){
+  const lvl = levelInfo(level);
+  const modeNote = mode === 'text'
+    ? `This is a TEXT chat, not voice — keep each of your turns concise (2-6 sentences plus the next question), ask ONE question or follow-up at a time, and never dump multiple questions in one turn. Wait for the candidate's reply before continuing.`
+    : `Speak naturally like a real interviewer on a call — concise turns, real follow-ups, not a lecture.`;
+  return `You are a skeptical, rigorous senior/staff panelist at a top-tier tech company, running a RESUME / PROJECT DEEP-DIVE round for an `
+    + `Applied Data Scientist / AI Engineer / MLOps candidate. Calibrate your bar precisely to ${lvl.label} level (${lvl.sub} of experience) `
+    + `— not harder, not softer than that.\n\nBelow is the candidate's own resume / project write-up — this is your entire syllabus for this `
+    + `round; do not ask generic questions unrelated to it. Pick ONE project or bullet at a time, starting with the most technically substantial, `
+    + `and stress-test it: ask exactly why they chose each specific technology/technique over the realistic alternatives, make them quantify impact `
+    + `and scale with real numbers (%, latency, cost, users, data volume), ask why it was needed at all versus a simpler approach, propose a `
+    + `plausible alternative yourself and make them defend their choice against it, and cross-question anything vague, inconsistent, or `
+    + `buzzword-only. Do not let a hand-wavy answer pass — push for specifics every time, exactly like a hiring panel that suspects the resume `
+    + `might be embellished. Only move to the next project once this one has genuinely been stress-tested.\n\n`
+    + `CANDIDATE'S RESUME / PROJECTS:\n"""\n${resumeText}\n"""\n\n`
+    + `${companyStylePrompt(company)}${stretchBarRule()} ${DEPTH_COVERAGE_RULE} ${HINT_LADDER_RULE} ${modeNote} `
+    + `Start now with a one-line intro, then pick the first project to dig into.`;
+}
+
 function buildDebriefSystemPrompt(level, company){
   const lvl = levelInfo(level);
   return `You are a senior interview panel lead reviewing a mock interview transcript for an Applied Data Scientist / AI Engineer / MLOps `
@@ -2538,6 +2600,18 @@ updateTiSkillsHint();
 
 const tiProvider = mountProviderPanel('providerPanel-ti', 'ti');
 
+/* Resume/project deep-dive mode toggle — reuses this same tab's chat mechanics, just swaps which
+   system prompt gets built and skips the round selector. */
+const tiResumeModeToggle = document.getElementById('tiResumeModeToggle');
+const tiResumeBox = document.getElementById('tiResumeBox');
+const tiResumeText = document.getElementById('tiResumeText');
+try { tiResumeText.value = localStorage.getItem('vit_resumeDiveText') || ''; } catch(e){}
+tiResumeText.addEventListener('input', () => { try { localStorage.setItem('vit_resumeDiveText', tiResumeText.value); } catch(e){} });
+tiResumeModeToggle.addEventListener('change', () => {
+  tiResumeBox.hidden = !tiResumeModeToggle.checked;
+  roundFilterTI.disabled = tiResumeModeToggle.checked;
+});
+
 let tiTurns = [];
 let tiMicRecognition = null;
 let tiMicOn = false;
@@ -2564,23 +2638,30 @@ function addTiMessage(role, text){
 
 startTiBtn.addEventListener('click', async () => {
   const { provider, model, apiKey } = tiProvider.get();
+  const resumeMode = tiResumeModeToggle.checked;
   const round = roundFilterTI.value || ROUNDS[0];
   const level = parseInt(levelFilterTI.value, 10) || 3;
   const company = companyFilterTI.value;
   const lvl = levelInfo(level);
 
+  if (resumeMode && !tiResumeText.value.trim()){ alert('Paste your resume / project write-up first.'); return; }
+
   startTiBtn.disabled = true; startTiBtn.textContent = 'Starting…';
-  tiTurns = [{ role:'user', content: `Let's begin. I'm ready for the ${round} round at ${lvl.label} level${company ? (' with an ' + company + ' interview style') : ''}.` }];
+  tiTurns = [{ role:'user', content: resumeMode
+    ? `Let's begin. I'm ready for the resume/project deep-dive at ${lvl.label} level${company ? (' with an ' + company + ' interview style') : ''}.`
+    : `Let's begin. I'm ready for the ${round} round at ${lvl.label} level${company ? (' with an ' + company + ' interview style') : ''}.` }];
   tiMsgs.innerHTML = '';
 
   try{
-    const systemPrompt = buildInterviewSystemPrompt(round, level, 'text', company);
+    const systemPrompt = resumeMode
+      ? buildResumeDiveSystemPrompt(tiResumeText.value.trim(), level, 'text', company)
+      : buildInterviewSystemPrompt(round, level, 'text', company);
     const reply = await callLLM(provider, model, apiKey, systemPrompt, tiTurns);
     tiTurns.push({ role:'assistant', content: reply });
     addTiMessage('assistant', reply);
     if ('speechSynthesis' in window){ try{ speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(reply)); }catch(e){} }
     tiAnswerInput.disabled = false; sendTiBtn.disabled = false; tiMicBtn.disabled = false; endTiBtn.disabled = false;
-    roundFilterTI.disabled = true; levelFilterTI.disabled = true; companyFilterTI.disabled = true;
+    roundFilterTI.disabled = true; levelFilterTI.disabled = true; companyFilterTI.disabled = true; tiResumeModeToggle.disabled = true;
   } catch(err){
     console.error(err);
     addTiMessage('assistant', friendlyLLMError(err));
@@ -2593,6 +2674,7 @@ async function sendTiAnswer(){
   const text = tiAnswerInput.value.trim();
   if (!text) return;
   const { provider, model, apiKey } = tiProvider.get();
+  const resumeMode = tiResumeModeToggle.checked;
   const round = roundFilterTI.value || ROUNDS[0];
   const level = parseInt(levelFilterTI.value, 10) || 3;
   const company = companyFilterTI.value;
@@ -2603,7 +2685,9 @@ async function sendTiAnswer(){
   sendTiBtn.disabled = true;
 
   try{
-    const systemPrompt = buildInterviewSystemPrompt(round, level, 'text', company);
+    const systemPrompt = resumeMode
+      ? buildResumeDiveSystemPrompt(tiResumeText.value.trim(), level, 'text', company)
+      : buildInterviewSystemPrompt(round, level, 'text', company);
     const reply = await callLLM(provider, model, apiKey, systemPrompt, tiTurns);
     tiTurns.push({ role:'assistant', content: reply });
     addTiMessage('assistant', reply);
@@ -2893,6 +2977,137 @@ debriefBtn.addEventListener('click', async () => {
   } finally {
     debriefBtn.disabled = false; debriefBtn.textContent = '📋 Get post-call debrief (scored feedback)';
   }
+});
+
+/* ======================= STUDY MODE (every question, reveal-on-demand model answer, download) ======================= */
+const roundFilterStudy = document.getElementById('roundFilterStudy');
+const levelFilterStudy = document.getElementById('levelFilterStudy');
+const studySearch = document.getElementById('studySearch');
+populateRoundSelect(roundFilterStudy, true);
+populateLevelSelect(levelFilterStudy, true);
+
+let studyStopRequested = false;
+
+function studyAnswerKey(qid){ return 'vit_answer_' + qid; }
+function getCachedAnswer(qid){ try { return localStorage.getItem(studyAnswerKey(qid)) || ''; } catch(e){ return ''; } }
+function setCachedAnswer(qid, text){ try { localStorage.setItem(studyAnswerKey(qid), text); } catch(e){} }
+
+function studyFilteredList(){
+  const round = roundFilterStudy.value;
+  const level = parseInt(levelFilterStudy.value, 10) || 0;
+  const search = ((studySearch && studySearch.value) || '').trim().toLowerCase();
+  return QUESTIONS.filter(q =>
+    (!round || q.round === round) &&
+    (!level || q.level === level) &&
+    (!search || q.q.toLowerCase().includes(search))
+  );
+}
+
+function buildStudyAnswerPrompt(q){
+  const lvl = levelInfo(q.level);
+  const base = ROUND_INSTRUCTIONS[q.round] || '';
+  return `You are writing one entry of an interview-prep study guide for an Applied Data Scientist / AI Engineer / MLOps candidate, for the `
+    + `"${q.round}" round, calibrated to ${lvl.label} level (${lvl.sub} of experience). ${base} Give a genuinely strong, complete model answer to `
+    + `the question below — not just an outline or a list of topics to cover. Be concrete: name real techniques, rough numbers, and trade-offs. `
+    + `Use short paragraphs and/or bullet points. Keep it to 120-220 words and do not restate the question.`;
+}
+
+async function generateStudyAnswer(q){
+  const cached = getCachedAnswer(q.id);
+  if (cached) return cached;
+  const { provider, model, apiKey } = getSavedProviderConfig();
+  if (!apiKey){ const e = new Error('NO_KEY'); e.code = 'NO_KEY'; throw e; }
+  const text = await callLLM(provider, model, apiKey, buildStudyAnswerPrompt(q), [{ role:'user', content: q.q }]);
+  setCachedAnswer(q.id, text);
+  return text;
+}
+
+function renderStudyList(){
+  const list = studyFilteredList();
+  const el = document.getElementById('studyList');
+  if (!el) return;
+  el.innerHTML = '';
+  if (!list.length){ el.innerHTML = '<div class="hint">No questions match these filters.</div>'; return; }
+  list.forEach(q => {
+    const item = document.createElement('div');
+    item.className = 'studyItem';
+    const cached = getCachedAnswer(q.id);
+    item.innerHTML = `<div class="studyMeta"><span class="lvl" style="background:${levelColorStyle(q.level)}">L${q.level}</span> ${q.round}</div>`
+      + `<div class="studyQ">${q.q}</div>`
+      + `<button class="btn-secondary studyToggleBtn" type="button">${cached ? '👁 Show answer' : '✨ Generate &amp; show answer'}</button>`
+      + `<div class="studyAnswerBox" hidden></div>`;
+    const btn = item.querySelector('.studyToggleBtn');
+    const box = item.querySelector('.studyAnswerBox');
+    if (cached) box.innerHTML = cached.replace(/\n/g, '<br>');
+    btn.addEventListener('click', async () => {
+      if (!box.hidden){ box.hidden = true; btn.textContent = getCachedAnswer(q.id) ? '👁 Show answer' : '✨ Generate & show answer'; return; }
+      if (!getCachedAnswer(q.id)){
+        btn.disabled = true; btn.textContent = 'Generating…';
+        try {
+          const text = await generateStudyAnswer(q);
+          box.innerHTML = text.replace(/\n/g, '<br>');
+        } catch(err){
+          box.innerHTML = err.code === 'NO_KEY'
+            ? 'No API key saved yet — open the AI Feedback tab once, pick a free provider (Groq or Gemini), and paste a free key there. This tab reuses it automatically.'
+            : friendlyLLMError(err);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+      box.hidden = false;
+      btn.textContent = '🙈 Hide answer';
+    });
+    el.appendChild(item);
+  });
+}
+roundFilterStudy.addEventListener('change', renderStudyList);
+levelFilterStudy.addEventListener('change', renderStudyList);
+if (studySearch) studySearch.addEventListener('input', () => renderStudyList());
+
+document.getElementById('studyGenAllBtn').addEventListener('click', async () => {
+  const { apiKey } = getSavedProviderConfig();
+  if (!apiKey){ alert('No API key saved yet. Open the AI Feedback tab once, pick a free provider (Groq or Gemini), and paste a free key there first — this tab reuses it automatically.'); return; }
+  const list = studyFilteredList();
+  const missing = list.filter(q => !getCachedAnswer(q.id));
+  const genBtn = document.getElementById('studyGenAllBtn');
+  const stopBtn = document.getElementById('studyStopBtn');
+  const progressEl = document.getElementById('studyGenProgress');
+  if (!missing.length){ progressEl.textContent = 'All questions in this filter already have a cached answer — hit Download.'; return; }
+  if (!confirm(`This calls the model ${missing.length} time(s) using your saved free API key, one question at a time — it may take a few minutes for a large filter. Continue?`)) return;
+  studyStopRequested = false;
+  genBtn.disabled = true; stopBtn.disabled = false;
+  let done = 0;
+  for (const q of missing){
+    if (studyStopRequested) break;
+    progressEl.textContent = `Generating ${done + 1}/${missing.length}… (${q.round})`;
+    try { await generateStudyAnswer(q); } catch(err){ console.error('Study answer failed for', q.id, err); }
+    done++;
+  }
+  progressEl.textContent = `Done — generated ${done}/${missing.length} answer(s) in this filter.`;
+  genBtn.disabled = false; stopBtn.disabled = true;
+  renderStudyList();
+});
+document.getElementById('studyStopBtn').addEventListener('click', () => { studyStopRequested = true; });
+
+function downloadTextFile(filename, text){
+  const blob = new Blob([text], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+document.getElementById('studyDownloadBtn').addEventListener('click', () => {
+  const list = studyFilteredList();
+  if (!list.length){ alert('No questions match the current filter.'); return; }
+  let md = `# Voice Interview Trainer — Study Guide\n\nGenerated ${new Date().toLocaleString()} · ${list.length} question(s)\n`;
+  let lastRound = null;
+  list.forEach(q => {
+    if (q.round !== lastRound){ lastRound = q.round; md += `\n## ${q.round}\n`; }
+    const a = getCachedAnswer(q.id);
+    md += `\n### (L${q.level} ${levelInfo(q.level).label}) ${q.q}\n\n${a || '_(answer not generated yet — open Study Mode, click "Generate all answers in this filter", or open this question and reveal it once)_'}\n`;
+  });
+  downloadTextFile('voice-interview-trainer-study-guide.md', md);
 });
 </script>
 </body>
