@@ -192,6 +192,18 @@
     background:var(--card2); border:1px solid var(--border); border-radius:10px;
   }
   .authBar b{color:var(--text);}
+  .yoeBar{
+    display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;
+    font-size:0.82em; color:var(--muted); margin-bottom:10px; padding:8px 14px;
+    background:var(--card2); border:1px solid var(--border); border-radius:10px;
+  }
+  .yoeBar label{margin:0; font-size:1em; color:var(--text); font-weight:600;}
+  .yoeBar input{width:70px; padding:5px 8px; border-radius:7px; border:1px solid var(--border); background:var(--bg1); color:var(--text); font-size:0.95em;}
+  .skillsHint{
+    font-size:0.8em; color:var(--muted); margin-top:6px; padding:8px 10px;
+    background:var(--card2); border:1px dashed var(--border); border-radius:8px; line-height:1.5;
+  }
+  .skillsHint b{color:var(--text);}
 </style>
 </head>
 <body>
@@ -202,6 +214,12 @@
 <div class="wrap">
   <h1>🎯 Voice Interview Trainer</h1>
   <p class="sub">Applied Data Scientist / AI Engineer / MLOps interview practice — 11 skill domains from Python fundamentals to LLM systems, 4 levels from Beginner to Expert, calibrated to top-tier company rigor.</p>
+
+  <div class="yoeBar" id="yoeBar">
+    <label for="yoeInput">Your years of experience</label>
+    <input type="number" id="yoeInput" min="0" max="30" step="0.5"/>
+    <span id="yoeLevelHint"></span>
+  </div>
 
   <div class="authBar" id="authBar"></div>
 
@@ -352,7 +370,12 @@
           <label for="feedbackCompany">Target company style (optional)</label>
           <select id="feedbackCompany"></select>
         </div>
+        <div>
+          <label for="feedbackRole">Target role (optional)</label>
+          <select id="feedbackRole"></select>
+        </div>
       </div>
+      <div class="skillsHint" id="feedbackSkillsHint" hidden></div>
       <label for="feedbackAnswer">Your answer</label>
       <textarea id="feedbackAnswer" rows="6" placeholder="Paste or type your answer here (or use the transcript from Free Practice)…"></textarea>
       <div class="btn-row">
@@ -380,8 +403,13 @@
           <label for="companyFilterTI">Target company style</label>
           <select id="companyFilterTI"></select>
         </div>
+        <div>
+          <label for="roleFilterTI">Target role</label>
+          <select id="roleFilterTI"></select>
+        </div>
       </div>
-      <div class="hint">Your real experience (3.5–4 yrs) doesn't change what's asked — whatever level you pick above is the bar the interviewer holds you to, deliberately stretching you toward it. Every question also gets pushed into scale, enterprise context, and business outcome, not just the base topic.</div>
+      <div class="skillsHint" id="tiSkillsHint" hidden></div>
+      <div class="hint" id="tiYoeHint"></div>
       <div class="btn-row">
         <button class="btn-primary" id="startTiBtn">▶ Start interview</button>
         <button class="btn-secondary" id="endTiBtn" disabled>📋 End &amp; get debrief</button>
@@ -422,7 +450,12 @@
           <label for="companyFilterLive">Target company style</label>
           <select id="companyFilterLive"></select>
         </div>
+        <div>
+          <label for="roleFilterLive">Target role</label>
+          <select id="roleFilterLive"></select>
+        </div>
       </div>
+      <div class="skillsHint" id="liveSkillsHint" hidden></div>
       <div class="row">
         <div>
           <label for="eagerness">Turn-taking sensitivity (semantic VAD)</label>
@@ -647,6 +680,96 @@ const LEVELS = [
 function levelInfo(n){ return LEVELS.find(l => l.n === n) || LEVELS[2]; }
 function levelColorStyle(n){
   return ['', '#1f3a30;color:#39ff88', '#16233f;color:#5b8cff', '#2a2410;color:#ffcc4d', '#3a1f26;color:#ff5d7a'][n] || '';
+}
+
+/* ======================= YEARS OF EXPERIENCE → LEVEL ======================= */
+/* One YOE input drives the default "Level" everywhere (Feedback grading, AI Text Interview, Live Voice Interview),
+   and also feeds the interviewer's system prompt so the stretch-bar language always matches your real YOE
+   instead of a hardcoded number. Free Practice's level filter stays "All levels" by default since it's a browser, not a round. */
+function yoeToLevel(yoe){
+  const y = parseFloat(yoe);
+  if (!isFinite(y)) return 3;
+  if (y < 2) return 1;
+  if (y < 5) return 2;
+  if (y < 8) return 3;
+  return 4;
+}
+function loadYoe(){
+  let stored = null;
+  try { stored = parseFloat(localStorage.getItem('vit_yoe')); } catch(e){}
+  return isFinite(stored) ? stored : 3.5;
+}
+function saveYoe(y){ try { localStorage.setItem('vit_yoe', String(y)); } catch(e){} }
+let currentYoe = loadYoe();
+function yoeLabel(){ const y = currentYoe; return (y % 1 === 0) ? String(y) : y.toFixed(1); }
+
+/* Selects that should default their Level to whatever your YOE maps to. Populated lower in this file;
+   applyYoeLevelDefaults() is called once everything below exists, and again whenever you edit the YOE field. */
+const YOE_DRIVEN_LEVEL_SELECTS = [];
+function applyYoeLevelDefaults(){
+  const lvl = yoeToLevel(currentYoe);
+  YOE_DRIVEN_LEVEL_SELECTS.forEach(sel => { if (sel) sel.value = String(lvl); });
+  const hint = document.getElementById('yoeLevelHint');
+  if (hint) hint.textContent = `→ defaults the interview level to L${lvl} ${levelInfo(lvl).label} (${levelInfo(lvl).sub}) everywhere below. You can still override the Level dropdown per round.`;
+  const tiHint = document.getElementById('tiYoeHint');
+  if (tiHint) tiHint.textContent = `Your real experience (${yoeLabel()} yrs) doesn't soften what's asked — whatever level is picked above is the bar the interviewer holds you to, deliberately stretching you toward it. Every question also gets pushed into scale, enterprise context, and business outcome, not just the base topic.`;
+}
+const yoeInput = document.getElementById('yoeInput');
+if (yoeInput){
+  yoeInput.value = currentYoe;
+  yoeInput.addEventListener('change', () => {
+    const v = parseFloat(yoeInput.value);
+    currentYoe = isFinite(v) && v >= 0 ? v : currentYoe;
+    yoeInput.value = currentYoe;
+    saveYoe(currentYoe);
+    applyYoeLevelDefaults();
+  });
+}
+
+/* ======================= SKILL GROUPING + COMPANY/ROLE → ROUNDS ======================= */
+/* Purely cosmetic grouping of the existing rounds into skill "bots" for the dropdowns (optgroups) — no
+   change to what content each round actually has. Any round not listed here (e.g. a brand-new one added
+   later) automatically falls into "Other". Edit this to re-group as new rounds get added. */
+const ROUND_GROUPS = {
+  'Python Theory & Internals': 'Programming',
+  'Coding & Algorithms': 'Programming',
+  'SQL & Data Engineering': 'SQL & Data',
+  'Statistics & ML Theory': 'Statistics & ML',
+  'Experimentation & Causal Inference': 'Statistics & ML',
+  'Applied Data Science': 'Applied / Case Work',
+  'Case Studies & MLOps Deployment': 'Applied / Case Work',
+  'Applied AI & LLM Engineering': 'AI / LLM & MLOps',
+  'MLOps & Production ML': 'AI / LLM & MLOps',
+  'System Design': 'Systems & Cloud',
+  'Cloud/AWS': 'Systems & Cloud',
+  'SRE/Reliability/Security': 'Systems & Cloud',
+  'Core CS Fundamentals': 'Systems & Cloud',
+  'Behavioral & Leadership': 'Behavioral',
+};
+const ROUND_GROUP_ORDER = ['Programming','SQL & Data','Statistics & ML','Applied / Case Work','AI / LLM & MLOps','Systems & Cloud','Behavioral','Other'];
+
+const ROLES = ['Data Scientist', 'Applied Scientist / AI Engineer', 'MLOps Engineer', 'Data Analyst'];
+
+/* EDIT ME: which rounds actually get asked for a given company + role. Key is "Company|Role", value is an
+   array of exact round names from ROUNDS above. Left empty on purpose — Abhishek is sending the exact
+   per-company/role round lists to fill in here; until a key exists, the UI just says so instead of guessing. */
+const COMPANY_ROLE_ROUNDS = {
+  // 'Adobe|Data Scientist': ['SQL & Data Engineering', 'Statistics & ML Theory', 'Experimentation & Causal Inference', 'Applied Data Science', 'Behavioral & Leadership'],
+};
+function companyRoleKey(company, role){ return `${company || ''}|${role || ''}`; }
+function renderSkillsHint(elId, companySel, roleSel){
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const company = companySel ? companySel.value : '';
+  const role = roleSel ? roleSel.value : '';
+  if (!company){ el.hidden = true; el.innerHTML = ''; return; }
+  const rounds = COMPANY_ROLE_ROUNDS[companyRoleKey(company, role)];
+  el.hidden = false;
+  if (rounds && rounds.length){
+    el.innerHTML = `<b>${company}${role ? ' · ' + role : ''} usually interviews on:</b> ${rounds.join(' · ')}`;
+  } else {
+    el.innerHTML = `<b>${company}${role ? ' · ' + role : ''}:</b> no specific round list saved yet for this combo — showing/using all rounds for now. Tell Claude the exact rounds for this company + role and it'll wire this in.`;
+  }
 }
 
 /* ======================= PROGRESS (per-user Firestore document) ======================= */
@@ -1030,7 +1153,18 @@ const qSearchInput = document.getElementById('qSearch');
 const bmOnlyFilter = document.getElementById('bmOnlyFilter');
 function populateRoundSelect(sel, includeAll){
   if (includeAll){ const o = document.createElement('option'); o.value=''; o.textContent='All domains'; sel.appendChild(o); }
-  ROUNDS.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; sel.appendChild(o); });
+  const byGroup = {};
+  ROUNDS.forEach(r => {
+    const g = ROUND_GROUPS[r] || 'Other';
+    (byGroup[g] = byGroup[g] || []).push(r);
+  });
+  ROUND_GROUP_ORDER.forEach(g => {
+    const rounds = byGroup[g];
+    if (!rounds || !rounds.length) return;
+    const og = document.createElement('optgroup'); og.label = g;
+    rounds.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; og.appendChild(o); });
+    sel.appendChild(og);
+  });
 }
 function populateLevelSelect(sel, includeAll){
   if (includeAll){ const o = document.createElement('option'); o.value='0'; o.textContent='All levels'; sel.appendChild(o); }
@@ -1039,6 +1173,10 @@ function populateLevelSelect(sel, includeAll){
 function populateCompanySelect(sel){
   const any = document.createElement('option'); any.value=''; any.textContent='Any / general'; sel.appendChild(any);
   CASE_STUDY_COMPANIES.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
+}
+function populateRoleSelect(sel){
+  const any = document.createElement('option'); any.value=''; any.textContent='Any / general'; sel.appendChild(any);
+  ROLES.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; sel.appendChild(o); });
 }
 populateRoundSelect(roundFilter, true);
 populateLevelSelect(levelFilter, true);
@@ -2260,9 +2398,15 @@ function friendlyLLMError(err){
 /* ======================= AI FEEDBACK MODE ======================= */
 const feedbackLevelSel = document.getElementById('feedbackLevel');
 populateLevelSelect(feedbackLevelSel, false);
-feedbackLevelSel.value = '3';
+YOE_DRIVEN_LEVEL_SELECTS.push(feedbackLevelSel);
 const feedbackCompanySel = document.getElementById('feedbackCompany');
 populateCompanySelect(feedbackCompanySel);
+const feedbackRoleSel = document.getElementById('feedbackRole');
+populateRoleSelect(feedbackRoleSel);
+const updateFeedbackSkillsHint = () => renderSkillsHint('feedbackSkillsHint', feedbackCompanySel, feedbackRoleSel);
+feedbackCompanySel.addEventListener('change', updateFeedbackSkillsHint);
+feedbackRoleSel.addEventListener('change', updateFeedbackSkillsHint);
+updateFeedbackSkillsHint();
 
 const fbProvider = mountProviderPanel('providerPanel-fb', 'fb', updateFeedbackBanner);
 function updateFeedbackBanner(){
@@ -2295,7 +2439,7 @@ document.getElementById('gradeBtn').addEventListener('click', async () => {
 
   const systemPrompt = `You are a rigorous but fair technical interview coach for Applied Data Scientist / AI Engineer / MLOps roles, `
     + `grading against a ${lvl.label} (${lvl.sub}) bar — calibrate strictly to that level, not harder and not softer. `
-    + `${companyStylePrompt(company)}${STRETCH_BAR_RULE} ${DEPTH_COVERAGE_RULE} `
+    + `${companyStylePrompt(company)}${stretchBarRule()} ${DEPTH_COVERAGE_RULE} `
     + `For the given question and spoken/written answer, respond with these exact sections:\n`
     + `1) GRAMMAR & PHRASING: quote 2-4 specific phrases the candidate used and give more professional/native-sounding alternatives. If the `
     + `answer is already clean, say so briefly.\n`
@@ -2338,10 +2482,13 @@ const COMPANY_INTERVIEW_STYLE = {
 };
 function companyStylePrompt(company){ return (company && COMPANY_INTERVIEW_STYLE[company]) ? COMPANY_INTERVIEW_STYLE[company] + ' ' : ''; }
 
-/* Always-on rules: the candidate's real experience (3.5-4 yrs) never softens the bar, and every question gets pushed deeper — no topic skipped. */
-const STRETCH_BAR_RULE = `The candidate has roughly 3.5-4 years of real-world experience, but you are DELIBERATELY interviewing them one to two notches `
-  + `above that — hold the line at the level/bar stated above and do not soften questions or follow-ups just because their actual experience is `
-  + `lower. The goal is to stretch them to the target bar, not to match their current level.`;
+/* Always-on rules: the candidate's real experience (from the "Your years of experience" field, top of page) never
+   softens the bar, and every question gets pushed deeper — no topic skipped. */
+function stretchBarRule(){
+  return `The candidate has roughly ${yoeLabel()} years of real-world experience, but you are DELIBERATELY interviewing them one to two notches `
+    + `above that — hold the line at the level/bar stated above and do not soften questions or follow-ups just because their actual experience is `
+    + `lower. The goal is to stretch them to the target bar, not to match their current level.`;
+}
 const DEPTH_COVERAGE_RULE = `For every question, before moving on, also push into: (a) SCALE — how the approach breaks or must change as data/users/`
   + `traffic grow by 10-100x; (b) ENTERPRISE CONTEXT — how the answer changes for large/enterprise customers (compliance, security, multi-team or `
   + `multi-tenant complexity, cost at scale); and (c) BUSINESS OUTCOME — what specific decision or metric this would move, and how you'd report it `
@@ -2356,7 +2503,7 @@ function buildInterviewSystemPrompt(round, level, mode, company){
     : `Speak naturally like a real interviewer on a call — concise turns, real follow-ups, not a lecture.`;
   return `You are a professional, rigorous technical interviewer at a top-tier tech company, conducting the "${round}" round of a `
     + `mock interview for an Applied Data Scientist / AI Engineer / MLOps role. Calibrate your bar precisely to ${lvl.label} level `
-    + `(${lvl.sub} of experience) — not harder, not softer than that. ${base} ${companyStylePrompt(company)}${STRETCH_BAR_RULE} ${DEPTH_COVERAGE_RULE} `
+    + `(${lvl.sub} of experience) — not harder, not softer than that. ${base} ${companyStylePrompt(company)}${stretchBarRule()} ${DEPTH_COVERAGE_RULE} `
     + `${HINT_LADDER_RULE} ${modeNote} `
     + `Start now with a brief one-line intro to this round, then your first question.`;
 }
@@ -2364,7 +2511,7 @@ function buildInterviewSystemPrompt(round, level, mode, company){
 function buildDebriefSystemPrompt(level, company){
   const lvl = levelInfo(level);
   return `You are a senior interview panel lead reviewing a mock interview transcript for an Applied Data Scientist / AI Engineer / MLOps `
-    + `candidate, graded against a ${lvl.label} (${lvl.sub}) bar. ${companyStylePrompt(company)}${STRETCH_BAR_RULE} Respond with exactly these sections:\n`
+    + `candidate, graded against a ${lvl.label} (${lvl.sub}) bar. ${companyStylePrompt(company)}${stretchBarRule()} Respond with exactly these sections:\n`
     + `1) OVERALL RATING: one of Strong Hire / Hire / Leaning Hire / Leaning No Hire / No Hire / Strong No Hire, with one sentence why.\n`
     + `2) STRENGTHS: 2-4 bullet points with specific evidence quoted or paraphrased from the transcript.\n`
     + `3) WEAKNESSES: 2-4 bullet points, specific and evidence-based, not generic.\n`
@@ -2378,10 +2525,16 @@ function buildDebriefSystemPrompt(level, company){
 const roundFilterTI = document.getElementById('roundFilterTI');
 const levelFilterTI = document.getElementById('levelFilterTI');
 const companyFilterTI = document.getElementById('companyFilterTI');
+const roleFilterTI = document.getElementById('roleFilterTI');
 populateRoundSelect(roundFilterTI, false);
 populateLevelSelect(levelFilterTI, false);
 populateCompanySelect(companyFilterTI);
-levelFilterTI.value = '3';
+populateRoleSelect(roleFilterTI);
+YOE_DRIVEN_LEVEL_SELECTS.push(levelFilterTI);
+const updateTiSkillsHint = () => renderSkillsHint('tiSkillsHint', companyFilterTI, roleFilterTI);
+companyFilterTI.addEventListener('change', updateTiSkillsHint);
+roleFilterTI.addEventListener('change', updateTiSkillsHint);
+updateTiSkillsHint();
 
 const tiProvider = mountProviderPanel('providerPanel-ti', 'ti');
 
@@ -2519,10 +2672,17 @@ document.getElementById('rtModelLabel').textContent = document.getElementById('r
 const roundFilterLive = document.getElementById('roundFilterLive');
 const levelFilterLive = document.getElementById('levelFilterLive');
 const companyFilterLive = document.getElementById('companyFilterLive');
+const roleFilterLive = document.getElementById('roleFilterLive');
 populateRoundSelect(roundFilterLive, false);
 populateLevelSelect(levelFilterLive, false);
 populateCompanySelect(companyFilterLive);
-levelFilterLive.value = '3';
+populateRoleSelect(roleFilterLive);
+YOE_DRIVEN_LEVEL_SELECTS.push(levelFilterLive);
+const updateLiveSkillsHint = () => renderSkillsHint('liveSkillsHint', companyFilterLive, roleFilterLive);
+companyFilterLive.addEventListener('change', updateLiveSkillsHint);
+roleFilterLive.addEventListener('change', updateLiveSkillsHint);
+updateLiveSkillsHint();
+applyYoeLevelDefaults();
 
 let livePc = null, liveDc = null, liveMic = null, liveTimerInt = null, liveStartTime = null;
 let liveAssistantBuffer = '', liveAssistantEl = null;
